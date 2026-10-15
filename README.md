@@ -6,7 +6,7 @@
 [![UXP Manifest](https://img.shields.io/badge/UXP-Manifest%20v5-eb1000)](https://developer.adobe.com/premiere-pro/uxp/)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://www.python.org/)
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.x-5C3EE8?logo=opencv)](https://opencv.org/)
-[![Cloudflare Pages](https://img.shields.io/badge/Cloudflare%20Pages-Live%20Demo-F38020?logo=cloudflare)](https://timeless-35mm-reconstruction.pages.dev)
+[![Cloudflare Pages](https://img.shields.io/badge/Cloudflare%20Pages-Live%20Demo-F38020?logo=cloudflare)](https://timeless-35mm-plugin.pages.dev)
 
 ---
 
@@ -119,7 +119,7 @@ python timeless.py \
 ## 🌐 Cloudflare Pages Live Demo
 
 Test the interactive interface and visual emulsion simulator online:
-👉 **[timeless-35mm-reconstruction.pages.dev](https://timeless-35mm-reconstruction.pages.dev)**
+👉 **[timeless-35mm-plugin.pages.dev](https://timeless-35mm-plugin.pages.dev)**
 
 ---
 
