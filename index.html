@@ -1,1137 +1,289 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timeless 35mm Reconstruction - Adobe Premiere Pro UXP Plugin</title>
+    <meta charset="utf-8">
+    <title>Timeless 35mm Reconstruction</title>
     <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --surface-color: #242424;
-            --surface-hover: #2e2e2e;
-            --border-color: #383838;
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --accent-gold: #f59e0b;
-            --accent-gold-hover: #d97706;
-            --accent-blue: #3b82f6;
-            --status-bg: #111111;
-            --status-border: #262626;
-            --color-success: #10b981;
-            --color-error: #ef4444;
-            --color-warning: #f59e0b;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        html, body {
-            overflow-y: auto;
-            overflow-x: hidden;
-            scroll-behavior: smooth;
-        }
-
-        /* Custom Modern Scrollbars for Smooth Scroll Wheel Navigation */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #141414;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #333333;
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent-gold);
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            font-size: 12px;
-            line-height: 1.4;
-            padding: 14px;
-            max-width: 480px;
-            margin: 0 auto;
-        }
-
-        /* Header */
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-bottom: 12px;
-            margin-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .brand-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .brand-icon {
-            width: 22px;
-            height: 22px;
-            fill: var(--accent-gold);
-        }
-
-        h1 {
-            font-size: 13.5px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #ffffff;
-            text-transform: uppercase;
-        }
-
-        .badge-container {
-            display: flex;
-            gap: 6px;
-        }
-
-        .badge {
-            background-color: rgba(245, 158, 11, 0.15);
-            color: var(--accent-gold);
-            font-size: 9.5px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 3px;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .badge.scroll-badge {
-            background-color: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border-color: rgba(16, 185, 129, 0.3);
-        }
-
-        .badge.env-badge {
-            background-color: rgba(59, 130, 246, 0.15);
-            color: #93c5fd;
-            border-color: rgba(59, 130, 246, 0.3);
-        }
-
-        /* Section Layout */
-        .section-card {
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-
-        .section-title {
-            font-size: 10.5px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        /* Live Emulsion Viewport */
-        .preview-card {
-            padding: 10px;
-        }
-
-        .canvas-wrapper {
-            position: relative;
-            width: 100%;
-            height: 140px;
-            background: #0d0d0d;
-            border-radius: 4px;
-            overflow: hidden;
-            border: 1px solid #2d2d2d;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #previewCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        .canvas-overlay {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            display: flex;
-            gap: 6px;
-            z-index: 2;
-        }
-
-        .canvas-badge {
-            background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(4px);
-            color: var(--accent-gold);
-            font-size: 9px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 3px;
-            border: 1px solid rgba(245, 158, 11, 0.4);
-            letter-spacing: 0.5px;
-        }
-
-        .pill-btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 2px 8px;
-            font-size: 9.5px;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .pill-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: var(--accent-gold);
-        }
-
-        .pill-btn.active {
-            background: var(--accent-gold);
-            color: #000;
-            border-color: var(--accent-gold);
-            font-weight: 600;
-        }
-
-        /* Form Controls */
-        .control-group {
-            margin-bottom: 10px;
-        }
-
-        .control-group:last-child {
-            margin-bottom: 0;
-        }
-
-        label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 11px;
-            color: var(--text-primary);
-            margin-bottom: 4px;
-        }
-
-        .val-badge {
-            font-family: "Consolas", "Monaco", "Courier New", monospace;
-            font-size: 11px;
-            color: var(--accent-gold);
-            font-weight: 600;
-        }
-
-        select {
-            width: 100%;
-            background-color: #171717;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 6px 8px;
-            font-size: 11.5px;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.15s ease;
-        }
-
-        select:focus {
-            border-color: var(--accent-gold);
-        }
-
-        /* Sliders with wheel navigation */
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 4px;
-            background: #3b3b3b;
-            border-radius: 2px;
-            outline: none;
-            margin: 6px 0 2px 0;
-            cursor: pointer;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 13px;
-            height: 13px;
-            border-radius: 50%;
-            background: var(--accent-gold);
-            cursor: pointer;
-            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
-            transition: transform 0.1s ease;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.15);
-            background: #fbbf24;
-        }
-
-        .wheel-indicator {
-            font-size: 9px;
-            color: var(--text-secondary);
-            opacity: 0.75;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 2px;
-        }
-
-        /* Action Buttons */
-        .btn-container {
-            margin-top: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .primary-btn {
-            width: 100%;
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: #000000;
-            border: none;
-            border-radius: 5px;
-            padding: 9px 14px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            transition: all 0.15s ease;
-        }
-
-        .primary-btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, #fbbf24, #f59e0b);
-            box-shadow: 0 3px 6px rgba(245, 158, 11, 0.25);
-            transform: translateY(-1px);
-        }
-
-        .primary-btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .primary-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            filter: grayscale(0.5);
-        }
-
-        .secondary-btn {
-            width: 100%;
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            transition: all 0.15s ease;
-        }
-
-        .secondary-btn:hover {
-            color: var(--text-primary);
-            border-color: #555555;
-            background: rgba(255, 255, 255, 0.04);
-        }
-
-        /* Status Console */
-        .status-container {
-            margin-top: 12px;
-        }
-
-        #status-box {
-            background-color: var(--status-bg);
-            border: 1px solid var(--status-border);
-            border-radius: 5px;
-            padding: 10px;
-            font-family: "Consolas", "Monaco", "Courier New", monospace;
-            font-size: 10px;
-            min-height: 85px;
-            max-height: 140px;
-            overflow-y: auto;
-            color: #d1d5db;
-            word-break: break-all;
-            white-space: pre-wrap;
-        }
-
-        .log-entry {
-            margin-bottom: 4px;
-            line-height: 1.35;
-        }
-
-        .log-entry:last-child {
-            margin-bottom: 0;
-        }
-
-        .log-info { color: #9ca3af; }
-        .log-processing { color: var(--accent-gold); font-weight: 600; }
-        .log-success { color: var(--color-success); font-weight: 600; }
-        .log-error { color: var(--color-error); font-weight: 600; }
-        .log-cmd { color: #60a5fa; font-size: 9.5px; }
-
-        /* Timeline target info */
-        .timeline-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 10px;
-            color: var(--text-secondary);
-            padding: 4px 2px;
-        }
-
-        .target-tag {
-            background: #1e3a8a;
-            color: #93c5fd;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 9.5px;
-            font-weight: 600;
-        }
+        /* overflow-x: auto and overflow-y: auto activates dual scrollbars if panel space scales tight */
+        body { background-color: #1E1E1E; color: #E6E6E6; font-family: sans-serif; padding: 15px; margin: 0; font-size: 12px; overflow-y: auto; overflow-x: auto; height: 100vh; box-sizing: border-box; }
+        h3 { color: #FFF; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+        .control-group { margin-bottom: 12px; display: flex; flex-direction: column; min-width: 240px; }
+        label { margin-bottom: 4px; color: #B3B3B3; font-weight: bold; white-space: nowrap; }
+        select, input[type="range"], button { background-color: #2D2D2D; color: #FFF; border: 1px solid #454545; padding: 6px; border-radius: 4px; font-size: 12px; }
+        select:focus, input[type="range"]:focus { border-color: #1473E6; outline: none; }
+        .slider-row { display: flex; align-items: center; justify-content: space-between; white-space: nowrap; }
+        input[type="range"] { flex-grow: 1; margin-right: 10px; min-width: 120px; }
+        .val-display { min-width: 35px; text-align: right; color: #1473E6; font-weight: bold; }
+        .btn-container { display: flex; gap: 10px; margin-top: 15px; min-width: 240px; }
+        button { font-weight: bold; cursor: pointer; padding: 10px; flex-grow: 1; border: none; white-space: nowrap; }
+        #processBtn { background-color: #1473E6; }
+        #processBtn:hover { background-color: #0D59B3; }
+        #resetBtn { background-color: #454545; max-width: 80px; }
+        #status-box { background: #151515; border: 1px solid #333; padding: 8px; margin-top: 12px; border-radius: 4px; font-family: monospace; color: #8CE10B; height: 50px; overflow-y: auto; min-width: 240px; }
+        
+        /* Modern scrollbar styling for dual scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #151515; }
+        ::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #1473E6; }
     </style>
 </head>
 <body>
-
-    <header>
-        <div class="brand-title">
-            <svg class="brand-icon" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
-                <circle cx="12" cy="12" r="3" fill="currentColor"/>
-                <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
-                <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
-                <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
-                <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
-            </svg>
-            <h1>Timeless 35mm</h1>
-        </div>
-        <div class="badge-container">
-            <span class="badge scroll-badge" title="Scroll wheel scrub enabled for all sliders and dropdowns">🖱️ Scroll Wheel Active</span>
-            <span id="hostBadge" class="badge env-badge">DETECTING...</span>
-            <span class="badge">UXP v1.0</span>
-        </div>
-    </header>
-
-    <!-- Live Emulsion Viewport -->
-    <div class="section-card preview-card">
-        <div class="section-title">
-            <span>Emulsion Simulation Viewport</span>
-            <div class="view-controls">
-                <button type="button" id="previewModeBtn" class="pill-btn active">Reconstructed</button>
-            </div>
-        </div>
-        <div class="canvas-wrapper">
-            <canvas id="previewCanvas" width="340" height="140"></canvas>
-            <div class="canvas-overlay">
-                <span id="canvasBadge" class="canvas-badge">35mm SIM</span>
-            </div>
-        </div>
+    <h3>Timeless 35mm UXP Engine</h3>
+    <div class="control-group">
+        <label for="eraDropdown">1. Target Cinematic Era</label>
+        <select id="eraDropdown">
+            <option value="">Select Era...</option>
+            <option value="1950s">1950s Cinema</option>
+            <option value="1970s">1970s New Hollywood Realism</option>
+            <option value="1980s">1980s Neo-Noir / Fantasy</option>
+        </select>
     </div>
-
-    <!-- Section 1: Presets & Profiles -->
-    <div class="section-card">
-        <div class="section-title">
-            <span>Photochemical Profiles</span>
-            <span class="target-tag">TRACK 1 TARGET</span>
-        </div>
-
-        <div class="control-group">
-            <label for="eraDropdown">Cinematic Era</label>
-            <select id="eraDropdown" title="Use scroll wheel over dropdown to cycle eras">
-                <option value="1950s">1950s - Technicolor Golden Age & Nitrate Stock</option>
-                <option value="1960s">1960s - Nouvelle Vague & Techniscope 2-Perf</option>
-                <option value="1970s" selected>1970s - New Hollywood Gritty Panavision</option>
-                <option value="1980s">1980s - High-Speed 5294/5297 Blockbuster</option>
-                <option value="1990s">1990s - Kodak EXR & Vision Modern Fine Grain</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label for="cameraDropdown">Camera Modifier Profile (1950s / 1970s / 1980s)</label>
-            <select id="cameraDropdown" title="Use scroll wheel over dropdown to cycle camera profiles">
-                <option value="standard">Standard Neutral Camera (Base Stock)</option>
-                <option value="1950s_mitchell_bnc">1950s Mitchell BNC (Bausch & Lomb Baltars)</option>
-                <option value="1950s_bell_howell">1950s Bell & Howell 2709 (Vintage Cooke Glass)</option>
-                <option value="1960s_arri_2c">1960s Arriflex 35 II-C (Schneider Xenon Glass)</option>
-                <option value="1970s_panaflex" selected>1970s Panavision Panaflex (C-Series Anamorphic)</option>
-                <option value="1970s_arri_35bl">1970s Arriflex 35 BL-1 (Carl Zeiss Planar Glass)</option>
-                <option value="1980s_arri_bl4">1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)</option>
-                <option value="1980s_moviecam">1980s Moviecam SuperAmerica (Canon K-35 Glass)</option>
-                <option value="1990s_panavision_plat">1990s Panavision Platinum (Primo Primes)</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label for="balanceDropdown">Chemical Color Balance</label>
-            <select id="balanceDropdown" title="Use scroll wheel over dropdown to switch color balance">
-                <option value="warm">Warm Balance (Daylight 5600K / Rich Skin Tones)</option>
-                <option value="cool">Cool Balance (Tungsten 3200K / Cyan-Noir Shadows)</option>
-            </select>
-        </div>
-        <div class="wheel-indicator">💡 Hover & scroll mouse wheel to scrub sliders & cycle presets</div>
+    <div class="control-group">
+        <label for="cameraDropdown">2. Optional Camera Modification</label>
+        <select id="cameraDropdown" disabled>
+            <option value="">Select Camera Profile...</option>
+        </select>
     </div>
-
-    <!-- Section 2: Fine-Tuning Optical & Emulsion Controls -->
-    <div class="section-card">
-        <div class="section-title">Emulsion & Optical Modulators</div>
-
-        <div class="control-group">
-            <label>
-                <span>MTF Radial Lens Blur</span>
-                <span id="mtfVal" class="val-badge">15 px</span>
-            </label>
-            <input type="range" id="mtfSlider" min="1" max="31" step="2" value="15" title="Scroll wheel scrub enabled">
-        </div>
-
-        <div class="control-group">
-            <label>
-                <span>Halation Highlight Threshold</span>
-                <span id="threshVal" class="val-badge">205</span>
-            </label>
-            <input type="range" id="threshSlider" min="100" max="255" step="1" value="205" title="Scroll wheel scrub enabled">
-        </div>
-
-        <div class="control-group">
-            <label>
-                <span>Halation Scatter Radius</span>
-                <span id="hBlurVal" class="val-badge">65 px</span>
-            </label>
-            <input type="range" id="hBlurSlider" min="5" max="101" step="2" value="65" title="Scroll wheel scrub enabled">
-        </div>
-
-        <div class="control-group">
-            <label>
-                <span>Halation Red Bleed Intensity</span>
-                <span id="hIntVal" class="val-badge">0.90</span>
-            </label>
-            <input type="range" id="hIntSlider" min="0.0" max="1.5" step="0.05" value="0.90" title="Scroll wheel scrub enabled">
-        </div>
-
-        <div class="control-group">
-            <label>
-                <span>Photochemical Grain Intensity</span>
-                <span id="gIntVal" class="val-badge">0.058</span>
-            </label>
-            <input type="range" id="gIntSlider" min="0.00" max="0.15" step="0.005" value="0.058" title="Scroll wheel scrub enabled">
-        </div>
-
-        <div class="control-group">
-            <label>
-                <span>Grain Crystal Size / Clumping</span>
-                <span id="gSizeVal" class="val-badge">1.4x</span>
-            </label>
-            <input type="range" id="gSizeSlider" min="0.5" max="3.0" step="0.1" value="1.4" title="Scroll wheel scrub enabled">
-        </div>
+    <div class="control-group">
+        <label for="balanceDropdown">3. Chemical Color Balance</label>
+        <select id="balanceDropdown">
+            <option value="warm">Daylight Balanced (Warm / Saturated / Natural)</option>
+            <option value="cool">Tungsten Balanced (Cool / Cyan-Noir / Moody)</option>
+        </select>
     </div>
-
-    <!-- Section 3: Process Execution -->
+    <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+    <div class="control-group"><label>Lens Edge Blur</label><div class="slider-row"><input type="range" id="slider-mtf" min="0" max="30" value="0"><span class="val-display" id="val-mtf">0px</span></div></div>
+    <div class="control-group"><label>Halation Threshold</label><div class="slider-row"><input type="range" id="slider-thresh" min="150" max="255" value="255"><span class="val-display" id="val-thresh">255</span></div></div>
+    <div class="control-group"><label>Halation Radius</label><div class="slider-row"><input type="range" id="slider-hblur" min="5" max="101" step="2" value="5"><span class="val-display" id="val-hblur">5px</span></div></div>
+    <div class="control-group"><label>Halation Intensity</label><div class="slider-row"><input type="range" id="slider-hint" min="0.0" max="1.5" step="0.05" value="0.00"><span class="val-display" id="val-hint">0.00</span></div></div>
+    <div class="control-group"><label>Grain Intensity</label><div class="slider-row"><input type="range" id="slider-gint" min="0.00" max="0.15" step="0.005" value="0.000"><span class="val-display" id="val-gint">0.000</span></div></div>
+    <div class="control-group"><label>Grain Scale Gauge</label><div class="slider-row"><input type="range" id="slider-gsize" min="0.5" max="2.5" step="0.05" value="1.00"><span class="val-display" id="val-gsize">1.00x</span></div></div>
     <div class="btn-container">
-        <button id="processBtn" class="primary-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5,3 19,12 5,21"/>
-            </svg>
-            <span>Reconstruct Selected Clip</span>
-        </button>
-        <button type="button" id="copyCmdBtn" class="secondary-btn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            <span>Copy CLI Command</span>
-        </button>
+        <button id="resetBtn">RESET</button>
+        <button id="processBtn">PROCESS ACTIVE TIMELINE CLIP</button>
     </div>
-
-    <!-- Section 4: Real-time Terminal Log -->
-    <div class="status-container">
-        <div class="timeline-info">
-            <span>Status Log</span>
-            <span id="activeClipName">Ready</span>
-        </div>
-        <div id="status-box">Ready. Select a clip on Track 1 and click "Reconstruct Selected Clip".</div>
-    </div>
+    <div id="status-box">Status: Ready. Highlight a timeline clip on Track 1.</div>
 
     <script>
-        // --- 1. Era Profiles & Camera Modifier Dictionaries (1950s, 1970s, 1980s) ---
-        const eraProfiles = {
+        const { exec } = require('child_process');
+        const path = require('path');
+        const os = require('os');
+        const app = require('premierepro');
+        
+        const eraBaselines = {
+            "1950s": { mtf: 14, thresh: 230, h_blur: 41, h_int: 0.50, g_int: 0.050, g_size: 1.30 },
+            "1970s": { mtf: 20, thresh: 215, h_blur: 45, h_int: 0.60, g_int: 0.065, g_size: 1.45 },
+            "1980s": { mtf: 8,  thresh: 230, h_blur: 31, h_int: 0.35, g_int: 0.040, g_size: 1.10 }
+        };
+        const cameraModifiers = {
             "1950s": {
-                name: "1950s Technicolor Golden Age",
-                balance: "warm",
-                mtf: 17,
-                thresh: 195,
-                h_blur: 61,
-                h_int: 0.85,
-                g_int: 0.065,
-                g_size: 1.6
-            },
-            "1960s": {
-                name: "1960s Nouvelle Vague & Techniscope",
-                balance: "warm",
-                mtf: 13,
-                thresh: 205,
-                h_blur: 51,
-                h_int: 0.72,
-                g_int: 0.055,
-                g_size: 1.4
+                "Technicolor Three-Strip (Process 4)": { mtf: 12, thresh: 195, h_blur: 65, h_int: 0.95, g_int: 0.035, g_size: 1.1 },
+                "Arriflex 16ST (German Cinema Glass)": { mtf: 24, thresh: 220, h_blur: 35, h_int: 0.45, g_int: 0.080, g_size: 1.8 }
             },
             "1970s": {
-                name: "1970s New Hollywood Panavision",
-                balance: "cool",
-                mtf: 15,
-                thresh: 210,
-                h_blur: 55,
-                h_int: 0.75,
-                g_int: 0.050,
-                g_size: 1.3
+                "Panavision PSR (Spherical Reality)": { mtf: 18, thresh: 225, h_blur: 35, h_int: 0.40, g_int: 0.060, g_size: 1.4 },
+                "Panavision C-Series (Anamorphic Gold)": { mtf: 22, thresh: 205, h_blur: 55, h_int: 0.75, g_int: 0.070, g_size: 1.5 }
             },
             "1980s": {
-                name: "1980s Blockbuster High-Speed 5294",
-                balance: "cool",
-                mtf: 9,
-                thresh: 220,
-                h_blur: 39,
-                h_int: 0.55,
-                g_int: 0.042,
-                g_size: 1.1
-            },
-            "1990s": {
-                name: "1990s Kodak EXR & Vision T-Grain",
-                balance: "warm",
-                mtf: 7,
-                thresh: 230,
-                h_blur: 29,
-                h_int: 0.40,
-                g_int: 0.028,
-                g_size: 0.9
+                "Arriflex 35 BL-3 (Zeiss Super Speeds)": { mtf: 6, thresh: 240, h_blur: 25, h_int: 0.25, g_int: 0.035, g_size: 1.05 },
+                "Moviecam SuperAmerica (Canon K-35)": { mtf: 10, thresh: 220, h_blur: 35, h_int: 0.45, g_int: 0.045, g_size: 1.15 }
             }
         };
 
-        const cameraModifiers = {
-            "standard": {
-                name: "Standard Neutral Camera (Base Stock)",
-                mtfDelta: 0,
-                threshDelta: 0,
-                hBlurDelta: 0,
-                hIntDelta: 0.0,
-                gIntDelta: 0.0,
-                gSizeDelta: 0.0
-            },
-            // 1950s Era Camera Modifiers
-            "1950s_mitchell_bnc": {
-                name: "1950s Mitchell BNC (Bausch & Lomb Baltars)",
-                mtfDelta: 6,
-                threshDelta: -15,
-                hBlurDelta: 12,
-                hIntDelta: 0.20,
-                gIntDelta: 0.015,
-                gSizeDelta: 0.3
-            },
-            "1950s_bell_howell": {
-                name: "1950s Bell & Howell 2709 (Vintage Cooke Glass)",
-                mtfDelta: 8,
-                threshDelta: -20,
-                hBlurDelta: 16,
-                hIntDelta: 0.25,
-                gIntDelta: 0.020,
-                gSizeDelta: 0.4
-            },
-            // 1960s Era Modifier
-            "1960s_arri_2c": {
-                name: "1960s Arriflex 35 II-C (Schneider Xenon Glass)",
-                mtfDelta: 4,
-                threshDelta: -10,
-                hBlurDelta: 8,
-                hIntDelta: 0.12,
-                gIntDelta: 0.012,
-                gSizeDelta: 0.2
-            },
-            // 1970s Era Camera Modifiers
-            "1970s_panaflex": {
-                name: "1970s Panavision Panaflex (C-Series Anamorphic)",
-                mtfDelta: 4,
-                threshDelta: -5,
-                hBlurDelta: 10,
-                hIntDelta: 0.15,
-                gIntDelta: 0.008,
-                gSizeDelta: 0.15
-            },
-            "1970s_arri_35bl": {
-                name: "1970s Arriflex 35 BL-1 (Carl Zeiss Planar Glass)",
-                mtfDelta: 2,
-                threshDelta: -3,
-                hBlurDelta: 6,
-                hIntDelta: 0.08,
-                gIntDelta: 0.005,
-                gSizeDelta: 0.10
-            },
-            // 1980s Era Camera Modifiers
-            "1980s_arri_bl4": {
-                name: "1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)",
-                mtfDelta: -2,
-                threshDelta: 8,
-                hBlurDelta: -8,
-                hIntDelta: -0.10,
-                gIntDelta: -0.005,
-                gSizeDelta: -0.1
-            },
-            "1980s_moviecam": {
-                name: "1980s Moviecam SuperAmerica (Canon K-35 Glass)",
-                mtfDelta: -1,
-                threshDelta: 5,
-                hBlurDelta: -4,
-                hIntDelta: -0.06,
-                gIntDelta: -0.003,
-                gSizeDelta: -0.1
-            },
-            // 1990s Era Modifier
-            "1990s_panavision_plat": {
-                name: "1990s Panavision Platinum (Primo Primes)",
-                mtfDelta: -4,
-                threshDelta: 12,
-                hBlurDelta: -14,
-                hIntDelta: -0.18,
-                gIntDelta: -0.012,
-                gSizeDelta: -0.25
-            }
-        };
+        // DOM Element Selections
+        const eraDropdown = document.getElementById('eraDropdown');
+        const cameraDropdown = document.getElementById('cameraDropdown');
+        const balanceDropdown = document.getElementById('balanceDropdown');
 
-        // --- 2. DOM Elements ---
-        const hostBadge = document.getElementById("hostBadge");
-        const eraDropdown = document.getElementById("eraDropdown");
-        const cameraDropdown = document.getElementById("cameraDropdown");
-        const balanceDropdown = document.getElementById("balanceDropdown");
+        const sliderMtf = document.getElementById('slider-mtf');
+        const sliderThresh = document.getElementById('slider-thresh');
+        const sliderHblur = document.getElementById('slider-hblur');
+        const sliderHint = document.getElementById('slider-hint');
+        const sliderGint = document.getElementById('slider-gint');
+        const sliderGsize = document.getElementById('slider-gsize');
 
-        const mtfSlider = document.getElementById("mtfSlider");
-        const threshSlider = document.getElementById("threshSlider");
-        const hBlurSlider = document.getElementById("hBlurSlider");
-        const hIntSlider = document.getElementById("hIntSlider");
-        const gIntSlider = document.getElementById("gIntSlider");
-        const gSizeSlider = document.getElementById("gSizeSlider");
+        const valMtf = document.getElementById('val-mtf');
+        const valThresh = document.getElementById('val-thresh');
+        const valHblur = document.getElementById('val-hblur');
+        const valHint = document.getElementById('val-hint');
+        const valGint = document.getElementById('val-gint');
+        const valGsize = document.getElementById('val-gsize');
 
-        const mtfVal = document.getElementById("mtfVal");
-        const threshVal = document.getElementById("threshVal");
-        const hBlurVal = document.getElementById("hBlurVal");
-        const hIntVal = document.getElementById("hIntVal");
-        const gIntVal = document.getElementById("gIntVal");
-        const gSizeVal = document.getElementById("gSizeVal");
+        const resetBtn = document.getElementById('resetBtn');
+        const processBtn = document.getElementById('processBtn');
+        const statusBox = document.getElementById('status-box');
 
-        const processBtn = document.getElementById("processBtn");
-        const copyCmdBtn = document.getElementById("copyCmdBtn");
-        const statusBox = document.getElementById("status-box");
-        const activeClipName = document.getElementById("activeClipName");
-        const previewCanvas = document.getElementById("previewCanvas");
-        const previewModeBtn = document.getElementById("previewModeBtn");
-        const canvasBadge = document.getElementById("canvasBadge");
+        function updateDisplays() {
+            valMtf.textContent = `${sliderMtf.value}px`;
+            valThresh.textContent = `${sliderThresh.value}`;
+            valHblur.textContent = `${sliderHblur.value}px`;
+            valHint.textContent = parseFloat(sliderHint.value).toFixed(2);
+            valGint.textContent = parseFloat(sliderGint.value).toFixed(3);
+            valGsize.textContent = `${parseFloat(sliderGsize.value).toFixed(2)}x`;
+        }
 
-        let showBypass = false;
+        function setSliderValues(vals) {
+            if (vals.mtf !== undefined) sliderMtf.value = vals.mtf;
+            if (vals.thresh !== undefined) sliderThresh.value = vals.thresh;
+            if (vals.h_blur !== undefined) sliderHblur.value = vals.h_blur;
+            if (vals.h_int !== undefined) sliderHint.value = vals.h_int;
+            if (vals.g_int !== undefined) sliderGint.value = vals.g_int;
+            if (vals.g_size !== undefined) sliderGsize.value = vals.g_size;
+            updateDisplays();
+        }
 
-        // --- 3. Environment Detection ---
-        function detectEnvironment() {
-            try {
-                const ppro = window.require ? window.require("premierepro") : (typeof require !== "undefined" ? require("premierepro") : null);
-                const app = ppro?.app || window.app || (typeof window !== "undefined" && window.app) || (typeof app !== "undefined" ? app : null);
-                if (app && app.project) {
-                    hostBadge.textContent = "UXP HOST";
-                    hostBadge.classList.remove("env-badge");
-                    return "uxp";
+        // Dropdown Logic
+        eraDropdown.addEventListener('change', () => {
+            const era = eraDropdown.value;
+            cameraDropdown.innerHTML = '<option value="">Select Camera Profile...</option>';
+            
+            if (era && eraBaselines[era]) {
+                setSliderValues(eraBaselines[era]);
+                cameraDropdown.disabled = false;
+                
+                const cameras = cameraModifiers[era];
+                if (cameras) {
+                    Object.keys(cameras).forEach(camName => {
+                        const opt = document.createElement('option');
+                        opt.value = camName;
+                        opt.textContent = camName;
+                        cameraDropdown.appendChild(opt);
+                    });
                 }
-            } catch (e) {}
-            hostBadge.textContent = "WEB DEMO";
-            return "web";
-        }
-
-        const currentEnv = detectEnvironment();
-
-        // --- 4. Logging Functions ---
-        function appendStatus(message, type = "info") {
-            const time = new Date().toLocaleTimeString();
-            const entry = document.createElement("div");
-            entry.className = `log-entry log-${type}`;
-            entry.textContent = `[${time}] ${message}`;
-            statusBox.appendChild(entry);
-            statusBox.scrollTop = statusBox.scrollHeight;
-        }
-
-        // --- 5. Profile Sync & Slider Updating ---
-        function updateSliderDisplays() {
-            mtfVal.textContent = `${mtfSlider.value} px`;
-            threshVal.textContent = `${threshSlider.value}`;
-            hBlurVal.textContent = `${hBlurSlider.value} px`;
-            hIntVal.textContent = parseFloat(hIntSlider.value).toFixed(2);
-            gIntVal.textContent = parseFloat(gIntSlider.value).toFixed(3);
-            gSizeVal.textContent = `${parseFloat(gSizeSlider.value).toFixed(1)}x`;
-            renderPreview();
-        }
-
-        function applyProfiles() {
-            const eraKey = eraDropdown.value;
-            const cameraKey = cameraDropdown.value;
-
-            const era = eraProfiles[eraKey] || eraProfiles["1970s"];
-            const camera = cameraModifiers[cameraKey] || cameraModifiers["standard"];
-
-            // Chemical balance default based on era
-            balanceDropdown.value = era.balance;
-
-            // Compute parameters with camera modifier deltas
-            let mtf = Math.max(1, Math.min(31, era.mtf + camera.mtfDelta));
-            if (mtf % 2 === 0) mtf += 1;
-
-            let thresh = Math.max(100, Math.min(255, era.thresh + camera.threshDelta));
-
-            let h_blur = Math.max(5, Math.min(101, era.h_blur + camera.hBlurDelta));
-            if (h_blur % 2 === 0) h_blur += 1;
-
-            let h_int = Math.max(0.0, Math.min(1.5, parseFloat((era.h_int + camera.hIntDelta).toFixed(2))));
-            let g_int = Math.max(0.0, Math.min(0.15, parseFloat((era.g_int + camera.gIntDelta).toFixed(3))));
-            let g_size = Math.max(0.5, Math.min(3.0, parseFloat((era.g_size + camera.gSizeDelta).toFixed(1))));
-
-            // Update UI sliders
-            mtfSlider.value = mtf;
-            threshSlider.value = thresh;
-            hBlurSlider.value = h_blur;
-            hIntSlider.value = h_int;
-            gIntSlider.value = g_int;
-            gSizeSlider.value = g_size;
-
-            updateSliderDisplays();
-        }
-
-        // Event listeners for dropdowns
-        eraDropdown.addEventListener("change", applyProfiles);
-        cameraDropdown.addEventListener("change", applyProfiles);
-        balanceDropdown.addEventListener("change", renderPreview);
-
-        // Event listeners for manual slider adjustments
-        [mtfSlider, threshSlider, hBlurSlider, hIntSlider, gIntSlider, gSizeSlider].forEach(slider => {
-            slider.addEventListener("input", updateSliderDisplays);
-        });
-
-        // --- 6. Scroll Wheel Navigation Implementation ---
-        function enableScrollWheelNavigation() {
-            // Slider mouse wheel scrubbing
-            const sliderConfigs = [
-                { el: mtfSlider, step: 2, min: 1, max: 31, isOdd: true },
-                { el: threshSlider, step: 2, min: 100, max: 255, isOdd: false },
-                { el: hBlurSlider, step: 2, min: 5, max: 101, isOdd: true },
-                { el: hIntSlider, step: 0.05, min: 0.0, max: 1.5, decimals: 2 },
-                { el: gIntSlider, step: 0.005, min: 0.00, max: 0.15, decimals: 3 },
-                { el: gSizeSlider, step: 0.1, min: 0.5, max: 3.0, decimals: 1 }
-            ];
-
-            sliderConfigs.forEach(cfg => {
-                cfg.el.addEventListener("wheel", (e) => {
-                    e.preventDefault();
-                    const direction = e.deltaY < 0 ? 1 : -1;
-                    let val = parseFloat(cfg.el.value) + (direction * cfg.step);
-                    val = Math.max(cfg.min, Math.min(cfg.max, val));
-
-                    if (cfg.decimals !== undefined) {
-                        cfg.el.value = val.toFixed(cfg.decimals);
-                    } else {
-                        val = Math.round(val);
-                        if (cfg.isOdd && val % 2 === 0) {
-                            val += (direction >= 0 ? 1 : -1);
-                            val = Math.max(cfg.min, Math.min(cfg.max, val));
-                        }
-                        cfg.el.value = val;
-                    }
-                    updateSliderDisplays();
-                }, { passive: false });
-            });
-
-            // Dropdown mouse wheel cycling
-            const dropdowns = [eraDropdown, cameraDropdown, balanceDropdown];
-            dropdowns.forEach(dd => {
-                dd.addEventListener("wheel", (e) => {
-                    e.preventDefault();
-                    const direction = e.deltaY < 0 ? -1 : 1;
-                    const nextIdx = dd.selectedIndex + direction;
-                    if (nextIdx >= 0 && nextIdx < dd.options.length) {
-                        dd.selectedIndex = nextIdx;
-                        if (dd === eraDropdown || dd === cameraDropdown) {
-                            applyProfiles();
-                        } else {
-                            renderPreview();
-                        }
-                    }
-                }, { passive: false });
-            });
-        }
-
-        enableScrollWheelNavigation();
-
-        // --- 7. Live Canvas Emulsion Simulation ---
-        function renderPreview() {
-            if (!previewCanvas || !previewCanvas.getContext) return;
-            const ctx = previewCanvas.getContext("2d");
-            const w = previewCanvas.width;
-            const h = previewCanvas.height;
-
-            ctx.clearRect(0, 0, w, h);
-
-            if (showBypass) {
-                // Render flat clean digital baseline
-                const grad = ctx.createLinearGradient(0, 0, w, h);
-                grad.addColorStop(0, "#1f2937");
-                grad.addColorStop(1, "#111827");
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, w, h);
-
-                // Highlight source
-                ctx.fillStyle = "#ffffff";
-                ctx.beginPath();
-                ctx.arc(w * 0.45, h * 0.45, 12, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = "#f3f4f6";
-                ctx.fillRect(w * 0.65, h * 0.35, 35, 60);
-
-                canvasBadge.textContent = "DIGITAL BYPASS";
-                return;
-            }
-
-            canvasBadge.textContent = "35mm RECONSTRUCTED";
-
-            const balance = balanceDropdown.value;
-            const mtf = parseInt(mtfSlider.value, 10);
-            const h_int = parseFloat(hIntSlider.value);
-            const h_blur = parseInt(hBlurSlider.value, 10);
-            const g_int = parseFloat(gIntSlider.value);
-
-            // 1. Background scene with chemical tint
-            const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.7);
-            if (balance === "cool") {
-                bgGrad.addColorStop(0, "#1a2530");
-                bgGrad.addColorStop(1, "#0a1017");
+                statusBox.textContent = `Status: Loaded ${era} baseline parameters.`;
             } else {
-                bgGrad.addColorStop(0, "#2b2118");
-                bgGrad.addColorStop(1, "#120d09");
-            }
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, w, h);
-
-            // 2. Optical MTF Radial Blur Simulation (peripheral darkening & softness)
-            const mtfRadius = Math.max(10, 80 - mtf * 1.5);
-            const mtfGrad = ctx.createRadialGradient(w / 2, h / 2, mtfRadius, w / 2, h / 2, w * 0.75);
-            mtfGrad.addColorStop(0, "rgba(0,0,0,0)");
-            mtfGrad.addColorStop(1, `rgba(0,0,0,${Math.min(0.55, 0.15 + mtf * 0.015)})`);
-            ctx.fillStyle = mtfGrad;
-            ctx.fillRect(0, 0, w, h);
-
-            // 3. Highlight source
-            const hx = w * 0.42;
-            const hy = h * 0.42;
-
-            // 4. Halation Bleed Glow (Red photochemical diffusion using bitwise OR sizing concept)
-            const kernelBlur = (h_blur | 1);
-            const haloRadius = Math.max(15, kernelBlur * 0.85);
-            const haloGrad = ctx.createRadialGradient(hx, hy, 2, hx, hy, haloRadius);
-            const redAlpha = Math.min(0.9, h_int * 0.75);
-            haloGrad.addColorStop(0, `rgba(255, 60, 20, ${redAlpha})`);
-            haloGrad.addColorStop(0.35, `rgba(220, 20, 10, ${redAlpha * 0.6})`);
-            haloGrad.addColorStop(0.7, `rgba(180, 0, 0, ${redAlpha * 0.2})`);
-            haloGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-            ctx.save();
-            ctx.globalCompositeOperation = "screen";
-            ctx.fillStyle = haloGrad;
-            ctx.beginPath();
-            ctx.arc(hx, hy, haloRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            // Highlight core
-            ctx.fillStyle = "#ffffff";
-            ctx.beginPath();
-            ctx.arc(hx, hy, 9, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Silhouette subject
-            ctx.fillStyle = balance === "cool" ? "#0f172a" : "#1c140d";
-            ctx.fillRect(w * 0.65, h * 0.35, 35, 60);
-
-            // 5. Film Grain Overlay
-            const imgData = ctx.getImageData(0, 0, w, h);
-            const data = imgData.data;
-            const grainWeight = g_int * 900;
-
-            for (let i = 0; i < data.length; i += 4) {
-                const lum = (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]) / 255;
-                // Parabolic midtone modulation: 4 * lum * (1 - lum)
-                const mod = 4 * lum * (1 - lum);
-                const noise = (Math.random() - 0.5) * grainWeight * mod;
-                data[i] = Math.min(255, Math.max(0, data[i] + noise));
-                data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
-                data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
-            }
-            ctx.putImageData(imgData, 0, 0);
-        }
-
-        previewModeBtn.addEventListener("click", () => {
-            showBypass = !showBypass;
-            previewModeBtn.classList.toggle("active", !showBypass);
-            previewModeBtn.textContent = showBypass ? "Original Bypass" : "Reconstructed";
-            renderPreview();
-        });
-
-        // --- 8. CLI Command Builder & Copy Action ---
-        function getCliCommand(sampleIn = "source_clip.mp4", sampleOut = "source_clip_35mm_reconstructed.mp4") {
-            const mtf = parseInt(mtfSlider.value, 10);
-            const thresh = parseInt(threshSlider.value, 10);
-            const h_blur = parseInt(hBlurSlider.value, 10);
-            const h_int = parseFloat(hIntSlider.value);
-            const g_int = parseFloat(gIntSlider.value);
-            const g_size = parseFloat(gSizeSlider.value);
-            const balance = balanceDropdown.value;
-
-            return `python timeless.py --input "${sampleIn}" --output "${sampleOut}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance "${balance}"`;
-        }
-
-        copyCmdBtn.addEventListener("click", () => {
-            const cmd = getCliCommand();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(cmd);
-                appendStatus("CLI command copied to clipboard!", "success");
-            } else {
-                appendStatus(`CLI: ${cmd}`, "cmd");
+                cameraDropdown.disabled = true;
+                setSliderValues({ mtf: 0, thresh: 255, h_blur: 5, h_int: 0.0, g_int: 0.0, g_size: 1.0 });
+                statusBox.textContent = "Status: Ready. Select an Era.";
             }
         });
 
-        // --- 9. Premiere Pro Active Sequence Selection & Execution Logic ---
-        processBtn.addEventListener("click", async () => {
+        cameraDropdown.addEventListener('change', () => {
+            const era = eraDropdown.value;
+            const cam = cameraDropdown.value;
+            if (era && cam && cameraModifiers[era] && cameraModifiers[era][cam]) {
+                setSliderValues(cameraModifiers[era][cam]);
+                statusBox.textContent = `Status: Applied camera modifier: ${cam}`;
+            } else if (era && eraBaselines[era]) {
+                setSliderValues(eraBaselines[era]);
+                statusBox.textContent = `Status: Reverted to ${era} baseline profile.`;
+            }
+        });
+
+        // Sliders realtime display update
+        [sliderMtf, sliderThresh, sliderHblur, sliderHint, sliderGint, sliderGsize].forEach(slider => {
+            slider.addEventListener('input', updateDisplays);
+        });
+
+        // Reset Button
+        resetBtn.addEventListener('click', () => {
+            eraDropdown.value = "";
+            cameraDropdown.disabled = true;
+            cameraDropdown.innerHTML = '<option value="">Select Camera Profile...</option>';
+            balanceDropdown.value = "warm";
+            setSliderValues({ mtf: 0, thresh: 255, h_blur: 5, h_int: 0.0, g_int: 0.0, g_size: 1.0 });
+            statusBox.textContent = "Status: Reset to defaults. Highlight a clip on Track 1.";
+        });
+
+        // Scroll Wheel Navigation for Sliders & Dropdowns
+        [
+            { el: sliderMtf, step: 2, min: 0, max: 30, decimals: 0 },
+            { el: sliderThresh, step: 2, min: 150, max: 255, decimals: 0 },
+            { el: sliderHblur, step: 2, min: 5, max: 101, decimals: 0 },
+            { el: sliderHint, step: 0.05, min: 0.0, max: 1.5, decimals: 2 },
+            { el: sliderGint, step: 0.005, min: 0.00, max: 0.15, decimals: 3 },
+            { el: sliderGsize, step: 0.05, min: 0.5, max: 2.5, decimals: 2 }
+        ].forEach(({ el, step, min, max, decimals }) => {
+            el.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const direction = e.deltaY < 0 ? 1 : -1;
+                let val = parseFloat(el.value) + (direction * step);
+                val = Math.max(min, Math.min(max, val));
+                el.value = decimals > 0 ? val.toFixed(decimals) : Math.round(val);
+                updateDisplays();
+            }, { passive: false });
+        });
+
+        [eraDropdown, cameraDropdown, balanceDropdown].forEach(dd => {
+            dd.addEventListener('wheel', (e) => {
+                if (dd.disabled) return;
+                e.preventDefault();
+                const direction = e.deltaY < 0 ? -1 : 1;
+                const nextIdx = dd.selectedIndex + direction;
+                if (nextIdx >= 0 && nextIdx < dd.options.length) {
+                    dd.selectedIndex = nextIdx;
+                    dd.dispatchEvent(new Event('change'));
+                }
+            }, { passive: false });
+        });
+
+        // Asynchronous UXP Premiere Pro Timeline Process Execution
+        processBtn.addEventListener('click', async () => {
+            statusBox.textContent = "Status: Querying active sequence selection...";
             processBtn.disabled = true;
-            appendStatus("Processing... Initializing active timeline sequence query.", "processing");
 
             try {
-                // Dynamically import Premiere Pro and Node.js modules in UXP
-                const ppro = window.require ? window.require("premierepro") : (typeof require !== "undefined" ? require("premierepro") : null);
-                const app = ppro?.app || window.app || (typeof window !== "undefined" && window.app) || (typeof app !== "undefined" ? app : null);
-                const child_process = window.require ? window.require("child_process") : (typeof require !== "undefined" ? require("child_process") : null);
-                const nodePath = window.require ? window.require("path") : (typeof require !== "undefined" ? require("path") : null);
-
-                // Handle Web / Cloudflare Browser Demo Mode gracefully
-                if (!app || !app.project) {
-                    appendStatus("[WEB DEMO] Running outside Adobe Premiere Pro. Simulating 35mm reconstruction pipeline...", "processing");
-                    const era = eraProfiles[eraDropdown.value]?.name || "1970s Panavision";
-                    const camera = cameraModifiers[cameraDropdown.value]?.name || "Standard";
-                    const balance = balanceDropdown.value.toUpperCase();
-                    
-                    activeClipName.textContent = "Demo_Track1_35mm.mov";
-                    
-                    setTimeout(() => {
-                        appendStatus(`Target Sequence: "Active Timeline" | Track 1 Target: "Demo_Track1_35mm.mov"`, "info");
-                        appendStatus(`Optical Profile: Era: [${era}], Camera: [${camera}], Emulsion: [${balance}]`, "info");
-                    }, 350);
-
-                    setTimeout(() => {
-                        appendStatus("Applying MTF peripheral optical softness and 215-threshold red halation diffusion...", "processing");
-                        renderPreview();
-                    }, 700);
-
-                    setTimeout(() => {
-                        appendStatus("Synthesizing log-luminance modulated silver halide crystal grain...", "processing");
-                    }, 1100);
-
-                    setTimeout(() => {
-                        processBtn.disabled = false;
-                        appendStatus("Success: Simulated 35mm Reconstruction complete!", "success");
-                        appendStatus(`Output generated: Demo_Track1_35mm_reconstructed.mp4`, "success");
-                        appendStatus(`Command: ${getCliCommand("Demo_Track1_35mm.mov", "Demo_Track1_35mm_reconstructed.mp4")}`, "cmd");
-                    }, 1500);
-
-                    return;
+                // Check active sequence
+                const activeSeq = app.project.activeSequence;
+                if (!activeSeq) {
+                    throw new Error("No active sequence found. Open a sequence in Premiere Pro.");
                 }
 
-                if (!app.project.activeSequence) {
-                    throw new Error("No active sequence found. Please open a sequence in the timeline.");
-                }
-
-                // Call asynchronous UXP Sequence Selection API
-                const selection = await app.project.activeSequence.getSelection();
+                // Asynchronously get selection
+                const selection = await activeSeq.getSelection();
                 if (!selection || selection.length === 0) {
-                    throw new Error("No clip selected on timeline. Please select a clip on Track 1.");
+                    throw new Error("No clip selected on timeline. Highlight a clip on Track 1.");
                 }
 
-                // Cross-reference with Track 1 (videoTracks[0])
+                // Cross-reference Track 1 (videoTracks[0])
                 let targetClip = null;
                 try {
-                    const videoTracks = app.project.activeSequence.videoTracks;
+                    const videoTracks = activeSeq.videoTracks;
                     if (videoTracks && videoTracks.length > 0) {
                         const track1 = videoTracks[0];
                         if (track1 && track1.clips) {
                             const track1Clips = Array.from(track1.clips);
-                            targetClip = selection.find(selItem => 
+                            targetClip = selection.find(selItem =>
                                 track1Clips.some(c => c === selItem || c.nodeId === selItem.nodeId || (c.name && c.name === selItem.name))
                             );
                         }
                     }
-                } catch (trackErr) {
-                    console.warn("Track 1 query note:", trackErr);
+                } catch (tErr) {
+                    console.warn("Track query note:", tErr);
                 }
 
-                // If not filtered specifically on Track 1, take primary selection
                 if (!targetClip) {
                     targetClip = selection[0];
                 }
 
-                const clipDisplayName = targetClip.name || "Selected Clip";
-                activeClipName.textContent = clipDisplayName;
-                appendStatus(`Found target clip: "${clipDisplayName}". Resolving media path...`, "info");
+                statusBox.textContent = `Status: Resolving path for clip "${targetClip.name || "Selected Clip"}"...`;
 
-                // Asynchronously resolve the native media path
+                // Resolve media path
                 let mediaPath = null;
                 if (targetClip.projectItem) {
-                    if (typeof targetClip.projectItem.getMediaPath === "function") {
+                    if (typeof targetClip.projectItem.getMediaPath === 'function') {
                         mediaPath = await targetClip.projectItem.getMediaPath();
                     } else if (targetClip.projectItem.mediaPath) {
                         mediaPath = targetClip.projectItem.mediaPath;
                     }
-                } else if (typeof targetClip.getMediaPath === "function") {
+                } else if (typeof targetClip.getMediaPath === 'function') {
                     mediaPath = await targetClip.getMediaPath();
                 } else if (targetClip.mediaPath) {
                     mediaPath = targetClip.mediaPath;
                 }
 
                 if (!mediaPath) {
-                    throw new Error(`Could not resolve media path for "${clipDisplayName}". Ensure clip links to valid media on disk.`);
+                    throw new Error("Could not resolve disk media path for selected clip.");
                 }
 
-                appendStatus(`Media path resolved: ${mediaPath}`, "info");
-
                 // Read parameters from UI
-                const mtf = parseInt(mtfSlider.value, 10);
-                const thresh = parseInt(threshSlider.value, 10);
-                const h_blur = parseInt(hBlurSlider.value, 10);
-                const h_int = parseFloat(hIntSlider.value);
-                const g_int = parseFloat(gIntSlider.value);
-                const g_size = parseFloat(gSizeSlider.value);
+                const mtf = parseInt(sliderMtf.value, 10);
+                const thresh = parseInt(sliderThresh.value, 10);
+                const h_blur = parseInt(sliderHblur.value, 10);
+                const h_int = parseFloat(sliderHint.value);
+                const g_int = parseFloat(sliderGint.value);
+                const g_size = parseFloat(sliderGsize.value);
                 const balance = balanceDropdown.value;
 
                 // --- REPLACE THE OLD PATH LOGIC BLOCK WITH THIS ---
@@ -1150,36 +302,20 @@
                 const cmdString = `"${directPythonPath}" "${pythonScriptPath}" --input "${mediaPath}" --output "${outputMasterPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance ${balance}`;
                 // --------------------------------------------------
 
-                appendStatus(`Executing 35mm Reconstruction Engine...`, "processing");
-                appendStatus(`Parameters: Balance=${balance.toUpperCase()}, MTF=${mtf}, Threshold=${thresh}, HalationBlur=${h_blur}, HalationInt=${h_int}, GrainInt=${g_int}, GrainSize=${g_size}`, "info");
-                appendStatus(`Command: ${cmdString}`, "cmd");
+                statusBox.textContent = `Status: Processing 35mm Reconstruction via Python OpenCV...`;
 
-                if (!child_process || !child_process.exec) {
-                    throw new Error("Node.js child_process is not enabled. Verify manifest.json requiredPermissions.");
-                }
-
-                // Execute the Python pipeline
-                child_process.exec(cmdString, (error, stdout, stderr) => {
+                exec(cmdString, (error, stdout, stderr) => {
                     processBtn.disabled = false;
-
                     if (error) {
-                        appendStatus(`Error: Processing failed (${error.message})`, "error");
-                        if (stderr) appendStatus(`Stderr: ${stderr}`, "error");
+                        statusBox.textContent = `Status Error: ${error.message}`;
                         return;
                     }
+                    statusBox.textContent = `Status: Success! Saved to ${outputMasterPath}`;
 
-                    if (stdout && stdout.trim()) {
-                        appendStatus(`Output: ${stdout.trim()}`, "info");
-                    }
-
-                    appendStatus(`Success: 35mm Reconstruction complete!`, "success");
-                    appendStatus(`Output saved: ${outputMasterPath}`, "success");
-
-                    // Attempt non-blocking auto-import into Premiere Pro project bin
+                    // Auto-import to Premiere Pro Project bin
                     try {
-                        if (app.project && typeof app.project.importFiles === "function") {
+                        if (app.project && typeof app.project.importFiles === 'function') {
                             app.project.importFiles([outputMasterPath], true, app.project.rootItem, false);
-                            appendStatus(`[Premiere] Automatically imported reconstructed clip into Project Bin.`, "info");
                         }
                     } catch (importErr) {
                         console.warn("Auto-import note:", importErr);
@@ -1188,12 +324,12 @@
 
             } catch (err) {
                 processBtn.disabled = false;
-                appendStatus(`Error: ${err.message}`, "error");
+                statusBox.textContent = `Status Error: ${err.message}`;
             }
         });
 
-        // Initialize displays and canvas
-        applyProfiles();
+        // Initialize display values
+        updateDisplays();
     </script>
 </body>
 </html>
