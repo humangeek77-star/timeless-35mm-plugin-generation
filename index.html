@@ -1125,35 +1125,6 @@
 
                 appendStatus(`Media path resolved: ${mediaPath}`, "info");
 
-                // Resolve timeless.py script location
-                let pluginDir = "";
-                try {
-                    const uxp = window.require ? window.require("uxp") : (typeof require !== "undefined" ? require("uxp") : null);
-                    if (uxp?.storage?.localFileSystem) {
-                        const pluginFolder = await uxp.storage.localFileSystem.getPluginFolder();
-                        pluginDir = pluginFolder.nativePath;
-                    }
-                } catch (e) {
-                    pluginDir = (typeof __dirname !== "undefined") ? __dirname : ".";
-                }
-
-                if (!pluginDir && typeof __dirname !== "undefined") {
-                    pluginDir = __dirname;
-                }
-
-                const scriptPath = nodePath ? nodePath.join(pluginDir, "timeless.py") : "timeless.py";
-
-                // Generate reconstructed output path in media directory
-                let outputPath;
-                if (nodePath) {
-                    const ext = nodePath.extname(mediaPath) || ".mp4";
-                    const base = nodePath.basename(mediaPath, ext);
-                    const dir = nodePath.dirname(mediaPath);
-                    outputPath = nodePath.join(dir, `${base}_35mm_reconstructed${ext}`);
-                } else {
-                    outputPath = mediaPath.replace(/(\.[^.]+)$/, "_35mm_reconstructed$1");
-                }
-
                 // Read parameters from UI
                 const mtf = parseInt(mtfSlider.value, 10);
                 const thresh = parseInt(threshSlider.value, 10);
@@ -1163,19 +1134,32 @@
                 const g_size = parseFloat(gSizeSlider.value);
                 const balance = balanceDropdown.value;
 
-                // Build python command matching timeless.py argparse flags
-                const cmd = `python "${scriptPath}" --input "${mediaPath}" --output "${outputPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance "${balance}"`;
+                // --- REPLACE THE OLD PATH LOGIC BLOCK WITH THIS ---
+                const fs = require('fs');
+                const os = require('os');
+                const path = require('path');
+
+                // Natively query the absolute system directory where Adobe is hosting our UXP files
+                const pluginDir = require('uxp').storage.localFileSystem.getPluginFolder().nativePath;
+                const pythonScriptPath = path.join(pluginDir, "timeless.py");
+                const outputMasterPath = mediaPath.replace(/(\.[\w\d]+)$/i, '_Timeless35mm.mp4');
+
+                const localUser = os.userInfo().username;
+                const directPythonPath = `C:\\Users\\${localUser}\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe`;
+
+                const cmdString = `"${directPythonPath}" "${pythonScriptPath}" --input "${mediaPath}" --output "${outputMasterPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance ${balance}`;
+                // --------------------------------------------------
 
                 appendStatus(`Executing 35mm Reconstruction Engine...`, "processing");
                 appendStatus(`Parameters: Balance=${balance.toUpperCase()}, MTF=${mtf}, Threshold=${thresh}, HalationBlur=${h_blur}, HalationInt=${h_int}, GrainInt=${g_int}, GrainSize=${g_size}`, "info");
-                appendStatus(`Command: ${cmd}`, "cmd");
+                appendStatus(`Command: ${cmdString}`, "cmd");
 
                 if (!child_process || !child_process.exec) {
                     throw new Error("Node.js child_process is not enabled. Verify manifest.json requiredPermissions.");
                 }
 
                 // Execute the Python pipeline
-                child_process.exec(cmd, (error, stdout, stderr) => {
+                child_process.exec(cmdString, (error, stdout, stderr) => {
                     processBtn.disabled = false;
 
                     if (error) {
@@ -1189,12 +1173,12 @@
                     }
 
                     appendStatus(`Success: 35mm Reconstruction complete!`, "success");
-                    appendStatus(`Output saved: ${outputPath}`, "success");
+                    appendStatus(`Output saved: ${outputMasterPath}`, "success");
 
                     // Attempt non-blocking auto-import into Premiere Pro project bin
                     try {
                         if (app.project && typeof app.project.importFiles === "function") {
-                            app.project.importFiles([outputPath], true, app.project.rootItem, false);
+                            app.project.importFiles([outputMasterPath], true, app.project.rootItem, false);
                             appendStatus(`[Premiere] Automatically imported reconstructed clip into Project Bin.`, "info");
                         }
                     } catch (importErr) {
