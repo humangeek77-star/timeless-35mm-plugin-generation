@@ -30,6 +30,30 @@
             -webkit-user-select: none;
         }
 
+        html, body {
+            overflow-y: auto;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Modern Scrollbars for Smooth Scroll Wheel Navigation */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #141414;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333333;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-gold);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
@@ -39,7 +63,6 @@
             padding: 14px;
             max-width: 480px;
             margin: 0 auto;
-            overflow-x: hidden;
         }
 
         /* Header */
@@ -86,6 +109,15 @@
             border-radius: 3px;
             letter-spacing: 0.5px;
             border: 1px solid rgba(245, 158, 11, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge.scroll-badge {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
         }
 
         .badge.env-badge {
@@ -225,7 +257,7 @@
             border-color: var(--accent-gold);
         }
 
-        /* Sliders */
+        /* Sliders with wheel navigation */
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
@@ -252,6 +284,16 @@
         input[type="range"]::-webkit-slider-thumb:hover {
             transform: scale(1.15);
             background: #fbbf24;
+        }
+
+        .wheel-indicator {
+            font-size: 9px;
+            color: var(--text-secondary);
+            opacity: 0.75;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
         }
 
         /* Action Buttons */
@@ -391,6 +433,7 @@
             <h1>Timeless 35mm</h1>
         </div>
         <div class="badge-container">
+            <span class="badge scroll-badge" title="Scroll wheel scrub enabled for all sliders and dropdowns">🖱️ Scroll Wheel Active</span>
             <span id="hostBadge" class="badge env-badge">DETECTING...</span>
             <span class="badge">UXP v1.0</span>
         </div>
@@ -421,7 +464,7 @@
 
         <div class="control-group">
             <label for="eraDropdown">Cinematic Era</label>
-            <select id="eraDropdown">
+            <select id="eraDropdown" title="Use scroll wheel over dropdown to cycle eras">
                 <option value="1950s">1950s - Technicolor Golden Age & Nitrate Stock</option>
                 <option value="1960s">1960s - Nouvelle Vague & Techniscope 2-Perf</option>
                 <option value="1970s" selected>1970s - New Hollywood Gritty Panavision</option>
@@ -431,13 +474,14 @@
         </div>
 
         <div class="control-group">
-            <label for="cameraDropdown">Camera Modifier Profile</label>
-            <select id="cameraDropdown">
+            <label for="cameraDropdown">Camera Modifier Profile (1950s / 1970s / 1980s)</label>
+            <select id="cameraDropdown" title="Use scroll wheel over dropdown to cycle camera profiles">
                 <option value="standard">Standard Neutral Camera (Base Stock)</option>
                 <option value="1950s_mitchell_bnc">1950s Mitchell BNC (Bausch & Lomb Baltars)</option>
                 <option value="1950s_bell_howell">1950s Bell & Howell 2709 (Vintage Cooke Glass)</option>
                 <option value="1960s_arri_2c">1960s Arriflex 35 II-C (Schneider Xenon Glass)</option>
                 <option value="1970s_panaflex" selected>1970s Panavision Panaflex (C-Series Anamorphic)</option>
+                <option value="1970s_arri_35bl">1970s Arriflex 35 BL-1 (Carl Zeiss Planar Glass)</option>
                 <option value="1980s_arri_bl4">1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)</option>
                 <option value="1980s_moviecam">1980s Moviecam SuperAmerica (Canon K-35 Glass)</option>
                 <option value="1990s_panavision_plat">1990s Panavision Platinum (Primo Primes)</option>
@@ -446,11 +490,12 @@
 
         <div class="control-group">
             <label for="balanceDropdown">Chemical Color Balance</label>
-            <select id="balanceDropdown">
+            <select id="balanceDropdown" title="Use scroll wheel over dropdown to switch color balance">
                 <option value="warm">Warm Balance (Daylight 5600K / Rich Skin Tones)</option>
                 <option value="cool">Cool Balance (Tungsten 3200K / Cyan-Noir Shadows)</option>
             </select>
         </div>
+        <div class="wheel-indicator">💡 Hover & scroll mouse wheel to scrub sliders & cycle presets</div>
     </div>
 
     <!-- Section 2: Fine-Tuning Optical & Emulsion Controls -->
@@ -462,7 +507,7 @@
                 <span>MTF Radial Lens Blur</span>
                 <span id="mtfVal" class="val-badge">15 px</span>
             </label>
-            <input type="range" id="mtfSlider" min="1" max="31" step="2" value="15">
+            <input type="range" id="mtfSlider" min="1" max="31" step="2" value="15" title="Scroll wheel scrub enabled">
         </div>
 
         <div class="control-group">
@@ -470,7 +515,7 @@
                 <span>Halation Highlight Threshold</span>
                 <span id="threshVal" class="val-badge">205</span>
             </label>
-            <input type="range" id="threshSlider" min="100" max="255" step="1" value="205">
+            <input type="range" id="threshSlider" min="100" max="255" step="1" value="205" title="Scroll wheel scrub enabled">
         </div>
 
         <div class="control-group">
@@ -478,7 +523,7 @@
                 <span>Halation Scatter Radius</span>
                 <span id="hBlurVal" class="val-badge">65 px</span>
             </label>
-            <input type="range" id="hBlurSlider" min="5" max="101" step="2" value="65">
+            <input type="range" id="hBlurSlider" min="5" max="101" step="2" value="65" title="Scroll wheel scrub enabled">
         </div>
 
         <div class="control-group">
@@ -486,7 +531,7 @@
                 <span>Halation Red Bleed Intensity</span>
                 <span id="hIntVal" class="val-badge">0.90</span>
             </label>
-            <input type="range" id="hIntSlider" min="0.0" max="1.5" step="0.05" value="0.90">
+            <input type="range" id="hIntSlider" min="0.0" max="1.5" step="0.05" value="0.90" title="Scroll wheel scrub enabled">
         </div>
 
         <div class="control-group">
@@ -494,7 +539,7 @@
                 <span>Photochemical Grain Intensity</span>
                 <span id="gIntVal" class="val-badge">0.058</span>
             </label>
-            <input type="range" id="gIntSlider" min="0.00" max="0.15" step="0.005" value="0.058">
+            <input type="range" id="gIntSlider" min="0.00" max="0.15" step="0.005" value="0.058" title="Scroll wheel scrub enabled">
         </div>
 
         <div class="control-group">
@@ -502,7 +547,7 @@
                 <span>Grain Crystal Size / Clumping</span>
                 <span id="gSizeVal" class="val-badge">1.4x</span>
             </label>
-            <input type="range" id="gSizeSlider" min="0.5" max="3.0" step="0.1" value="1.4">
+            <input type="range" id="gSizeSlider" min="0.5" max="3.0" step="0.1" value="1.4" title="Scroll wheel scrub enabled">
         </div>
     </div>
 
@@ -533,7 +578,7 @@
     </div>
 
     <script>
-        // --- 1. Era Profiles & Camera Modifier Dictionaries ---
+        // --- 1. Era Profiles & Camera Modifier Dictionaries (1950s, 1970s, 1980s) ---
         const eraProfiles = {
             "1950s": {
                 name: "1950s Technicolor Golden Age",
@@ -597,6 +642,7 @@
                 gIntDelta: 0.0,
                 gSizeDelta: 0.0
             },
+            // 1950s Era Camera Modifiers
             "1950s_mitchell_bnc": {
                 name: "1950s Mitchell BNC (Bausch & Lomb Baltars)",
                 mtfDelta: 6,
@@ -615,6 +661,7 @@
                 gIntDelta: 0.020,
                 gSizeDelta: 0.4
             },
+            // 1960s Era Modifier
             "1960s_arri_2c": {
                 name: "1960s Arriflex 35 II-C (Schneider Xenon Glass)",
                 mtfDelta: 4,
@@ -624,6 +671,7 @@
                 gIntDelta: 0.012,
                 gSizeDelta: 0.2
             },
+            // 1970s Era Camera Modifiers
             "1970s_panaflex": {
                 name: "1970s Panavision Panaflex (C-Series Anamorphic)",
                 mtfDelta: 4,
@@ -633,6 +681,16 @@
                 gIntDelta: 0.008,
                 gSizeDelta: 0.15
             },
+            "1970s_arri_35bl": {
+                name: "1970s Arriflex 35 BL-1 (Carl Zeiss Planar Glass)",
+                mtfDelta: 2,
+                threshDelta: -3,
+                hBlurDelta: 6,
+                hIntDelta: 0.08,
+                gIntDelta: 0.005,
+                gSizeDelta: 0.10
+            },
+            // 1980s Era Camera Modifiers
             "1980s_arri_bl4": {
                 name: "1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)",
                 mtfDelta: -2,
@@ -651,6 +709,7 @@
                 gIntDelta: -0.003,
                 gSizeDelta: -0.1
             },
+            // 1990s Era Modifier
             "1990s_panavision_plat": {
                 name: "1990s Panavision Platinum (Primo Primes)",
                 mtfDelta: -4,
@@ -774,7 +833,61 @@
             slider.addEventListener("input", updateSliderDisplays);
         });
 
-        // --- 6. Live Canvas Emulsion Simulation ---
+        // --- 6. Scroll Wheel Navigation Implementation ---
+        function enableScrollWheelNavigation() {
+            // Slider mouse wheel scrubbing
+            const sliderConfigs = [
+                { el: mtfSlider, step: 2, min: 1, max: 31, isOdd: true },
+                { el: threshSlider, step: 2, min: 100, max: 255, isOdd: false },
+                { el: hBlurSlider, step: 2, min: 5, max: 101, isOdd: true },
+                { el: hIntSlider, step: 0.05, min: 0.0, max: 1.5, decimals: 2 },
+                { el: gIntSlider, step: 0.005, min: 0.00, max: 0.15, decimals: 3 },
+                { el: gSizeSlider, step: 0.1, min: 0.5, max: 3.0, decimals: 1 }
+            ];
+
+            sliderConfigs.forEach(cfg => {
+                cfg.el.addEventListener("wheel", (e) => {
+                    e.preventDefault();
+                    const direction = e.deltaY < 0 ? 1 : -1;
+                    let val = parseFloat(cfg.el.value) + (direction * cfg.step);
+                    val = Math.max(cfg.min, Math.min(cfg.max, val));
+
+                    if (cfg.decimals !== undefined) {
+                        cfg.el.value = val.toFixed(cfg.decimals);
+                    } else {
+                        val = Math.round(val);
+                        if (cfg.isOdd && val % 2 === 0) {
+                            val += (direction >= 0 ? 1 : -1);
+                            val = Math.max(cfg.min, Math.min(cfg.max, val));
+                        }
+                        cfg.el.value = val;
+                    }
+                    updateSliderDisplays();
+                }, { passive: false });
+            });
+
+            // Dropdown mouse wheel cycling
+            const dropdowns = [eraDropdown, cameraDropdown, balanceDropdown];
+            dropdowns.forEach(dd => {
+                dd.addEventListener("wheel", (e) => {
+                    e.preventDefault();
+                    const direction = e.deltaY < 0 ? -1 : 1;
+                    const nextIdx = dd.selectedIndex + direction;
+                    if (nextIdx >= 0 && nextIdx < dd.options.length) {
+                        dd.selectedIndex = nextIdx;
+                        if (dd === eraDropdown || dd === cameraDropdown) {
+                            applyProfiles();
+                        } else {
+                            renderPreview();
+                        }
+                    }
+                }, { passive: false });
+            });
+        }
+
+        enableScrollWheelNavigation();
+
+        // --- 7. Live Canvas Emulsion Simulation ---
         function renderPreview() {
             if (!previewCanvas || !previewCanvas.getContext) return;
             const ctx = previewCanvas.getContext("2d");
@@ -836,8 +949,9 @@
             const hx = w * 0.42;
             const hy = h * 0.42;
 
-            // 4. Halation Bleed Glow (Red photochemical diffusion)
-            const haloRadius = Math.max(15, h_blur * 0.85);
+            // 4. Halation Bleed Glow (Red photochemical diffusion using bitwise OR sizing concept)
+            const kernelBlur = (h_blur | 1);
+            const haloRadius = Math.max(15, kernelBlur * 0.85);
             const haloGrad = ctx.createRadialGradient(hx, hy, 2, hx, hy, haloRadius);
             const redAlpha = Math.min(0.9, h_int * 0.75);
             haloGrad.addColorStop(0, `rgba(255, 60, 20, ${redAlpha})`);
@@ -887,7 +1001,7 @@
             renderPreview();
         });
 
-        // --- 7. CLI Command Builder & Copy Action ---
+        // --- 8. CLI Command Builder & Copy Action ---
         function getCliCommand(sampleIn = "source_clip.mp4", sampleOut = "source_clip_35mm_reconstructed.mp4") {
             const mtf = parseInt(mtfSlider.value, 10);
             const thresh = parseInt(threshSlider.value, 10);
@@ -910,7 +1024,7 @@
             }
         });
 
-        // --- 8. Premiere Pro Active Sequence Selection & Execution Logic ---
+        // --- 9. Premiere Pro Active Sequence Selection & Execution Logic ---
         processBtn.addEventListener("click", async () => {
             processBtn.disabled = true;
             appendStatus("Processing... Initializing active timeline sequence query.", "processing");

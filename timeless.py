@@ -23,14 +23,10 @@ def timeless_pipeline(frame, mtf_blur_max=11, halation_threshold=215, halation_b
     highlight_mask_float = highlight_mask.astype(np.float32) / 255.0
     b_chan, g_chan, r_chan = cv2.split(img_float)
     
-    red_highlights = r_chan * highlight_mask_float
-    if halation_blur % 2 == 0: halation_blur += 1
-    diffused_red_bleed = cv2.GaussianBlur(red_highlights, (halation_blur, halation_blur), 0)
-    
-    # Adapt halation look based on balance (tungsten film halos are tighter/cooler)
     h_mult = 0.7 if balance == "cool" else 1.0
-    red_bleed_layer = diffused_red_bleed * halation_intensity * h_mult
-    green_bleed_layer = diffused_red_bleed * (halation_intensity * 0.15)
+    red_bleed_layer = diffused_red_bleed = cv2.GaussianBlur(r_chan * highlight_mask_float, (halation_blur | 1, halation_blur | 1), 0) * halation_intensity * h_mult
+    green_bleed_layer = diffused_red_bleed * 0.15
+    
     r_halation = np.clip(r_chan + red_bleed_layer, 0.0, 1.0)
     g_halation = np.clip(g_chan + green_bleed_layer, 0.0, 1.0)
     halation_frame = cv2.merge([b_chan, g_halation, r_halation])
@@ -48,13 +44,12 @@ def timeless_pipeline(frame, mtf_blur_max=11, halation_threshold=215, halation_b
     processed_grain = raw_noise * grain_intensity * grain_modulation
     final_35mm_frame = np.clip(log_frame + processed_grain, 0.0, 1.0)
     
-    # Chemical Color Emulation Shift
     b_fin, g_fin, r_fin = cv2.split(final_35mm_frame)
     if balance == "cool":
-        r_fin = np.clip(r_fin * 0.91, 0.0, 1.0)  # Cool down skin tones and reds
-        b_fin = np.clip(b_fin * 1.06, 0.0, 1.0)  # Infuse cold cyan-noir steel undertones into shadows
+        r_fin = np.clip(r_fin * 0.91, 0.0, 1.0)
+        b_fin = np.clip(b_fin * 1.06, 0.0, 1.0)
     else:
-        r_fin = np.clip(r_fin * 1.02, 0.0, 1.0)  # Standard rich warm daylight response
+        r_fin = np.clip(r_fin * 1.02, 0.0, 1.0)
         
     final_35mm_frame = cv2.merge([b_fin, g_fin, r_fin])
     return (final_35mm_frame * 255).astype(np.uint8)
