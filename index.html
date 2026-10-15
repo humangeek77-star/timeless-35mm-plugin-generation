@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeless 35mm Reconstruction - Adobe Premiere Pro UXP Plugin</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --surface-color: #242424;
+            --surface-hover: #2e2e2e;
+            --border-color: #383838;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-gold: #f59e0b;
+            --accent-gold-hover: #d97706;
+            --accent-blue: #3b82f6;
+            --status-bg: #111111;
+            --status-border: #262626;
+            --color-success: #10b981;
+            --color-error: #ef4444;
+            --color-warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 14px;
+            max-width: 480px;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-icon {
+            width: 22px;
+            height: 22px;
+            fill: var(--accent-gold);
+        }
+
+        h1 {
+            font-size: 13.5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+            text-transform: uppercase;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 6px;
+        }
+
+        .badge {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--accent-gold);
+            font-size: 9.5px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge.env-badge {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        /* Section Layout */
+        .section-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 10.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Live Emulsion Viewport */
+        .preview-card {
+            padding: 10px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 140px;
+            background: #0d0d0d;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #2d2d2d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #previewCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: flex;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .canvas-badge {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            color: var(--accent-gold);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .pill-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 2px 8px;
+            font-size: 9.5px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .pill-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent-gold);
+        }
+
+        .pill-btn.active {
+            background: var(--accent-gold);
+            color: #000;
+            border-color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        /* Form Controls */
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .val-badge {
+            font-family: "Consolas", "Monaco", "Courier New", monospace;
+            font-size: 11px;
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            background-color: #171717;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 11.5px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+
+        select:focus {
+            border-color: var(--accent-gold);
+        }
+
+        /* Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #3b3b3b;
+            border-radius: 2px;
+            outline: none;
+            margin: 6px 0 2px 0;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--accent-gold);
+            cursor: pointer;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #fbbf24;
+        }
+
+        /* Action Buttons */
+        .btn-container {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .primary-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #000000;
+            border: none;
+            border-radius: 5px;
+            padding: 9px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: all 0.15s ease;
+        }
+
+        .primary-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            box-shadow: 0 3px 6px rgba(245, 158, 11, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .primary-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .secondary-btn {
+            width: 100%;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .secondary-btn:hover {
+            color: var(--text-primary);
+            border-color: #555555;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        /* Status Console */
+        .status-container {
+            margin-top: 12px;
+        }
+
+        #status-box {
+            background-color: var(--status-bg);
+            border: 1px solid var(--status-border);
+            border-radius: 5px;
+            padding: 10px;
+            font-family: "Consolas", "Monaco", "Courier New", monospace;
+            font-size: 10px;
+            min-height: 85px;
+            max-height: 140px;
+            overflow-y: auto;
+            color: #d1d5db;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            line-height: 1.35;
+        }
+
+        .log-entry:last-child {
+            margin-bottom: 0;
+        }
+
+        .log-info { color: #9ca3af; }
+        .log-processing { color: var(--accent-gold); font-weight: 600; }
+        .log-success { color: var(--color-success); font-weight: 600; }
+        .log-error { color: var(--color-error); font-weight: 600; }
+        .log-cmd { color: #60a5fa; font-size: 9.5px; }
+
+        /* Timeline target info */
+        .timeline-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-secondary);
+            padding: 4px 2px;
+        }
+
+        .target-tag {
+            background: #1e3a8a;
+            color: #93c5fd;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 9.5px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-title">
+            <svg class="brand-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
+                <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+                <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+                <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+            <h1>Timeless 35mm</h1>
+        </div>
+        <div class="badge-container">
+            <span id="hostBadge" class="badge env-badge">DETECTING...</span>
+            <span class="badge">UXP v1.0</span>
+        </div>
+    </header>
+
+    <!-- Live Emulsion Viewport -->
+    <div class="section-card preview-card">
+        <div class="section-title">
+            <span>Emulsion Simulation Viewport</span>
+            <div class="view-controls">
+                <button type="button" id="previewModeBtn" class="pill-btn active">Reconstructed</button>
+            </div>
+        </div>
+        <div class="canvas-wrapper">
+            <canvas id="previewCanvas" width="340" height="140"></canvas>
+            <div class="canvas-overlay">
+                <span id="canvasBadge" class="canvas-badge">35mm SIM</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Presets & Profiles -->
+    <div class="section-card">
+        <div class="section-title">
+            <span>Photochemical Profiles</span>
+            <span class="target-tag">TRACK 1 TARGET</span>
+        </div>
+
+        <div class="control-group">
+            <label for="eraDropdown">Cinematic Era</label>
+            <select id="eraDropdown">
+                <option value="1950s">1950s - Technicolor Golden Age & Nitrate Stock</option>
+                <option value="1960s">1960s - Nouvelle Vague & Techniscope 2-Perf</option>
+                <option value="1970s" selected>1970s - New Hollywood Gritty Panavision</option>
+                <option value="1980s">1980s - High-Speed 5294/5297 Blockbuster</option>
+                <option value="1990s">1990s - Kodak EXR & Vision Modern Fine Grain</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="cameraDropdown">Camera Modifier Profile</label>
+            <select id="cameraDropdown">
+                <option value="standard">Standard Neutral Camera (Base Stock)</option>
+                <option value="1950s_mitchell_bnc">1950s Mitchell BNC (Bausch & Lomb Baltars)</option>
+                <option value="1950s_bell_howell">1950s Bell & Howell 2709 (Vintage Cooke Glass)</option>
+                <option value="1960s_arri_2c">1960s Arriflex 35 II-C (Schneider Xenon Glass)</option>
+                <option value="1970s_panaflex" selected>1970s Panavision Panaflex (C-Series Anamorphic)</option>
+                <option value="1980s_arri_bl4">1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)</option>
+                <option value="1980s_moviecam">1980s Moviecam SuperAmerica (Canon K-35 Glass)</option>
+                <option value="1990s_panavision_plat">1990s Panavision Platinum (Primo Primes)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="balanceDropdown">Chemical Color Balance</label>
+            <select id="balanceDropdown">
+                <option value="warm">Warm Balance (Daylight 5600K / Rich Skin Tones)</option>
+                <option value="cool">Cool Balance (Tungsten 3200K / Cyan-Noir Shadows)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Section 2: Fine-Tuning Optical & Emulsion Controls -->
+    <div class="section-card">
+        <div class="section-title">Emulsion & Optical Modulators</div>
+
+        <div class="control-group">
+            <label>
+                <span>MTF Radial Lens Blur</span>
+                <span id="mtfVal" class="val-badge">15 px</span>
+            </label>
+            <input type="range" id="mtfSlider" min="1" max="31" step="2" value="15">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Halation Highlight Threshold</span>
+                <span id="threshVal" class="val-badge">205</span>
+            </label>
+            <input type="range" id="threshSlider" min="100" max="255" step="1" value="205">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Halation Scatter Radius</span>
+                <span id="hBlurVal" class="val-badge">65 px</span>
+            </label>
+            <input type="range" id="hBlurSlider" min="5" max="101" step="2" value="65">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Halation Red Bleed Intensity</span>
+                <span id="hIntVal" class="val-badge">0.90</span>
+            </label>
+            <input type="range" id="hIntSlider" min="0.0" max="1.5" step="0.05" value="0.90">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Photochemical Grain Intensity</span>
+                <span id="gIntVal" class="val-badge">0.058</span>
+            </label>
+            <input type="range" id="gIntSlider" min="0.00" max="0.15" step="0.005" value="0.058">
+        </div>
+
+        <div class="control-group">
+            <label>
+                <span>Grain Crystal Size / Clumping</span>
+                <span id="gSizeVal" class="val-badge">1.4x</span>
+            </label>
+            <input type="range" id="gSizeSlider" min="0.5" max="3.0" step="0.1" value="1.4">
+        </div>
+    </div>
+
+    <!-- Section 3: Process Execution -->
+    <div class="btn-container">
+        <button id="processBtn" class="primary-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5,3 19,12 5,21"/>
+            </svg>
+            <span>Reconstruct Selected Clip</span>
+        </button>
+        <button type="button" id="copyCmdBtn" class="secondary-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>Copy CLI Command</span>
+        </button>
+    </div>
+
+    <!-- Section 4: Real-time Terminal Log -->
+    <div class="status-container">
+        <div class="timeline-info">
+            <span>Status Log</span>
+            <span id="activeClipName">Ready</span>
+        </div>
+        <div id="status-box">Ready. Select a clip on Track 1 and click "Reconstruct Selected Clip".</div>
+    </div>
+
+    <script>
+        // --- 1. Era Profiles & Camera Modifier Dictionaries ---
+        const eraProfiles = {
+            "1950s": {
+                name: "1950s Technicolor Golden Age",
+                balance: "warm",
+                mtf: 17,
+                thresh: 195,
+                h_blur: 61,
+                h_int: 0.85,
+                g_int: 0.065,
+                g_size: 1.6
+            },
+            "1960s": {
+                name: "1960s Nouvelle Vague & Techniscope",
+                balance: "warm",
+                mtf: 13,
+                thresh: 205,
+                h_blur: 51,
+                h_int: 0.72,
+                g_int: 0.055,
+                g_size: 1.4
+            },
+            "1970s": {
+                name: "1970s New Hollywood Panavision",
+                balance: "cool",
+                mtf: 15,
+                thresh: 210,
+                h_blur: 55,
+                h_int: 0.75,
+                g_int: 0.050,
+                g_size: 1.3
+            },
+            "1980s": {
+                name: "1980s Blockbuster High-Speed 5294",
+                balance: "cool",
+                mtf: 9,
+                thresh: 220,
+                h_blur: 39,
+                h_int: 0.55,
+                g_int: 0.042,
+                g_size: 1.1
+            },
+            "1990s": {
+                name: "1990s Kodak EXR & Vision T-Grain",
+                balance: "warm",
+                mtf: 7,
+                thresh: 230,
+                h_blur: 29,
+                h_int: 0.40,
+                g_int: 0.028,
+                g_size: 0.9
+            }
+        };
+
+        const cameraModifiers = {
+            "standard": {
+                name: "Standard Neutral Camera (Base Stock)",
+                mtfDelta: 0,
+                threshDelta: 0,
+                hBlurDelta: 0,
+                hIntDelta: 0.0,
+                gIntDelta: 0.0,
+                gSizeDelta: 0.0
+            },
+            "1950s_mitchell_bnc": {
+                name: "1950s Mitchell BNC (Bausch & Lomb Baltars)",
+                mtfDelta: 6,
+                threshDelta: -15,
+                hBlurDelta: 12,
+                hIntDelta: 0.20,
+                gIntDelta: 0.015,
+                gSizeDelta: 0.3
+            },
+            "1950s_bell_howell": {
+                name: "1950s Bell & Howell 2709 (Vintage Cooke Glass)",
+                mtfDelta: 8,
+                threshDelta: -20,
+                hBlurDelta: 16,
+                hIntDelta: 0.25,
+                gIntDelta: 0.020,
+                gSizeDelta: 0.4
+            },
+            "1960s_arri_2c": {
+                name: "1960s Arriflex 35 II-C (Schneider Xenon Glass)",
+                mtfDelta: 4,
+                threshDelta: -10,
+                hBlurDelta: 8,
+                hIntDelta: 0.12,
+                gIntDelta: 0.012,
+                gSizeDelta: 0.2
+            },
+            "1970s_panaflex": {
+                name: "1970s Panavision Panaflex (C-Series Anamorphic)",
+                mtfDelta: 4,
+                threshDelta: -5,
+                hBlurDelta: 10,
+                hIntDelta: 0.15,
+                gIntDelta: 0.008,
+                gSizeDelta: 0.15
+            },
+            "1980s_arri_bl4": {
+                name: "1980s Arriflex 35 BL-4 (Zeiss Super Speed Mark II)",
+                mtfDelta: -2,
+                threshDelta: 8,
+                hBlurDelta: -8,
+                hIntDelta: -0.10,
+                gIntDelta: -0.005,
+                gSizeDelta: -0.1
+            },
+            "1980s_moviecam": {
+                name: "1980s Moviecam SuperAmerica (Canon K-35 Glass)",
+                mtfDelta: -1,
+                threshDelta: 5,
+                hBlurDelta: -4,
+                hIntDelta: -0.06,
+                gIntDelta: -0.003,
+                gSizeDelta: -0.1
+            },
+            "1990s_panavision_plat": {
+                name: "1990s Panavision Platinum (Primo Primes)",
+                mtfDelta: -4,
+                threshDelta: 12,
+                hBlurDelta: -14,
+                hIntDelta: -0.18,
+                gIntDelta: -0.012,
+                gSizeDelta: -0.25
+            }
+        };
+
+        // --- 2. DOM Elements ---
+        const hostBadge = document.getElementById("hostBadge");
+        const eraDropdown = document.getElementById("eraDropdown");
+        const cameraDropdown = document.getElementById("cameraDropdown");
+        const balanceDropdown = document.getElementById("balanceDropdown");
+
+        const mtfSlider = document.getElementById("mtfSlider");
+        const threshSlider = document.getElementById("threshSlider");
+        const hBlurSlider = document.getElementById("hBlurSlider");
+        const hIntSlider = document.getElementById("hIntSlider");
+        const gIntSlider = document.getElementById("gIntSlider");
+        const gSizeSlider = document.getElementById("gSizeSlider");
+
+        const mtfVal = document.getElementById("mtfVal");
+        const threshVal = document.getElementById("threshVal");
+        const hBlurVal = document.getElementById("hBlurVal");
+        const hIntVal = document.getElementById("hIntVal");
+        const gIntVal = document.getElementById("gIntVal");
+        const gSizeVal = document.getElementById("gSizeVal");
+
+        const processBtn = document.getElementById("processBtn");
+        const copyCmdBtn = document.getElementById("copyCmdBtn");
+        const statusBox = document.getElementById("status-box");
+        const activeClipName = document.getElementById("activeClipName");
+        const previewCanvas = document.getElementById("previewCanvas");
+        const previewModeBtn = document.getElementById("previewModeBtn");
+        const canvasBadge = document.getElementById("canvasBadge");
+
+        let showBypass = false;
+
+        // --- 3. Environment Detection ---
+        function detectEnvironment() {
+            try {
+                const ppro = window.require ? window.require("premierepro") : (typeof require !== "undefined" ? require("premierepro") : null);
+                const app = ppro?.app || window.app || (typeof window !== "undefined" && window.app) || (typeof app !== "undefined" ? app : null);
+                if (app && app.project) {
+                    hostBadge.textContent = "UXP HOST";
+                    hostBadge.classList.remove("env-badge");
+                    return "uxp";
+                }
+            } catch (e) {}
+            hostBadge.textContent = "WEB DEMO";
+            return "web";
+        }
+
+        const currentEnv = detectEnvironment();
+
+        // --- 4. Logging Functions ---
+        function appendStatus(message, type = "info") {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement("div");
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${time}] ${message}`;
+            statusBox.appendChild(entry);
+            statusBox.scrollTop = statusBox.scrollHeight;
+        }
+
+        // --- 5. Profile Sync & Slider Updating ---
+        function updateSliderDisplays() {
+            mtfVal.textContent = `${mtfSlider.value} px`;
+            threshVal.textContent = `${threshSlider.value}`;
+            hBlurVal.textContent = `${hBlurSlider.value} px`;
+            hIntVal.textContent = parseFloat(hIntSlider.value).toFixed(2);
+            gIntVal.textContent = parseFloat(gIntSlider.value).toFixed(3);
+            gSizeVal.textContent = `${parseFloat(gSizeSlider.value).toFixed(1)}x`;
+            renderPreview();
+        }
+
+        function applyProfiles() {
+            const eraKey = eraDropdown.value;
+            const cameraKey = cameraDropdown.value;
+
+            const era = eraProfiles[eraKey] || eraProfiles["1970s"];
+            const camera = cameraModifiers[cameraKey] || cameraModifiers["standard"];
+
+            // Chemical balance default based on era
+            balanceDropdown.value = era.balance;
+
+            // Compute parameters with camera modifier deltas
+            let mtf = Math.max(1, Math.min(31, era.mtf + camera.mtfDelta));
+            if (mtf % 2 === 0) mtf += 1;
+
+            let thresh = Math.max(100, Math.min(255, era.thresh + camera.threshDelta));
+
+            let h_blur = Math.max(5, Math.min(101, era.h_blur + camera.hBlurDelta));
+            if (h_blur % 2 === 0) h_blur += 1;
+
+            let h_int = Math.max(0.0, Math.min(1.5, parseFloat((era.h_int + camera.hIntDelta).toFixed(2))));
+            let g_int = Math.max(0.0, Math.min(0.15, parseFloat((era.g_int + camera.gIntDelta).toFixed(3))));
+            let g_size = Math.max(0.5, Math.min(3.0, parseFloat((era.g_size + camera.gSizeDelta).toFixed(1))));
+
+            // Update UI sliders
+            mtfSlider.value = mtf;
+            threshSlider.value = thresh;
+            hBlurSlider.value = h_blur;
+            hIntSlider.value = h_int;
+            gIntSlider.value = g_int;
+            gSizeSlider.value = g_size;
+
+            updateSliderDisplays();
+        }
+
+        // Event listeners for dropdowns
+        eraDropdown.addEventListener("change", applyProfiles);
+        cameraDropdown.addEventListener("change", applyProfiles);
+        balanceDropdown.addEventListener("change", renderPreview);
+
+        // Event listeners for manual slider adjustments
+        [mtfSlider, threshSlider, hBlurSlider, hIntSlider, gIntSlider, gSizeSlider].forEach(slider => {
+            slider.addEventListener("input", updateSliderDisplays);
+        });
+
+        // --- 6. Live Canvas Emulsion Simulation ---
+        function renderPreview() {
+            if (!previewCanvas || !previewCanvas.getContext) return;
+            const ctx = previewCanvas.getContext("2d");
+            const w = previewCanvas.width;
+            const h = previewCanvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            if (showBypass) {
+                // Render flat clean digital baseline
+                const grad = ctx.createLinearGradient(0, 0, w, h);
+                grad.addColorStop(0, "#1f2937");
+                grad.addColorStop(1, "#111827");
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+
+                // Highlight source
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                ctx.arc(w * 0.45, h * 0.45, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = "#f3f4f6";
+                ctx.fillRect(w * 0.65, h * 0.35, 35, 60);
+
+                canvasBadge.textContent = "DIGITAL BYPASS";
+                return;
+            }
+
+            canvasBadge.textContent = "35mm RECONSTRUCTED";
+
+            const balance = balanceDropdown.value;
+            const mtf = parseInt(mtfSlider.value, 10);
+            const h_int = parseFloat(hIntSlider.value);
+            const h_blur = parseInt(hBlurSlider.value, 10);
+            const g_int = parseFloat(gIntSlider.value);
+
+            // 1. Background scene with chemical tint
+            const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.7);
+            if (balance === "cool") {
+                bgGrad.addColorStop(0, "#1a2530");
+                bgGrad.addColorStop(1, "#0a1017");
+            } else {
+                bgGrad.addColorStop(0, "#2b2118");
+                bgGrad.addColorStop(1, "#120d09");
+            }
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // 2. Optical MTF Radial Blur Simulation (peripheral darkening & softness)
+            const mtfRadius = Math.max(10, 80 - mtf * 1.5);
+            const mtfGrad = ctx.createRadialGradient(w / 2, h / 2, mtfRadius, w / 2, h / 2, w * 0.75);
+            mtfGrad.addColorStop(0, "rgba(0,0,0,0)");
+            mtfGrad.addColorStop(1, `rgba(0,0,0,${Math.min(0.55, 0.15 + mtf * 0.015)})`);
+            ctx.fillStyle = mtfGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // 3. Highlight source
+            const hx = w * 0.42;
+            const hy = h * 0.42;
+
+            // 4. Halation Bleed Glow (Red photochemical diffusion)
+            const haloRadius = Math.max(15, h_blur * 0.85);
+            const haloGrad = ctx.createRadialGradient(hx, hy, 2, hx, hy, haloRadius);
+            const redAlpha = Math.min(0.9, h_int * 0.75);
+            haloGrad.addColorStop(0, `rgba(255, 60, 20, ${redAlpha})`);
+            haloGrad.addColorStop(0.35, `rgba(220, 20, 10, ${redAlpha * 0.6})`);
+            haloGrad.addColorStop(0.7, `rgba(180, 0, 0, ${redAlpha * 0.2})`);
+            haloGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+            ctx.save();
+            ctx.globalCompositeOperation = "screen";
+            ctx.fillStyle = haloGrad;
+            ctx.beginPath();
+            ctx.arc(hx, hy, haloRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Highlight core
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(hx, hy, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Silhouette subject
+            ctx.fillStyle = balance === "cool" ? "#0f172a" : "#1c140d";
+            ctx.fillRect(w * 0.65, h * 0.35, 35, 60);
+
+            // 5. Film Grain Overlay
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const grainWeight = g_int * 900;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const lum = (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]) / 255;
+                // Parabolic midtone modulation: 4 * lum * (1 - lum)
+                const mod = 4 * lum * (1 - lum);
+                const noise = (Math.random() - 0.5) * grainWeight * mod;
+                data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+                data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        previewModeBtn.addEventListener("click", () => {
+            showBypass = !showBypass;
+            previewModeBtn.classList.toggle("active", !showBypass);
+            previewModeBtn.textContent = showBypass ? "Original Bypass" : "Reconstructed";
+            renderPreview();
+        });
+
+        // --- 7. CLI Command Builder & Copy Action ---
+        function getCliCommand(sampleIn = "source_clip.mp4", sampleOut = "source_clip_35mm_reconstructed.mp4") {
+            const mtf = parseInt(mtfSlider.value, 10);
+            const thresh = parseInt(threshSlider.value, 10);
+            const h_blur = parseInt(hBlurSlider.value, 10);
+            const h_int = parseFloat(hIntSlider.value);
+            const g_int = parseFloat(gIntSlider.value);
+            const g_size = parseFloat(gSizeSlider.value);
+            const balance = balanceDropdown.value;
+
+            return `python timeless.py --input "${sampleIn}" --output "${sampleOut}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance "${balance}"`;
+        }
+
+        copyCmdBtn.addEventListener("click", () => {
+            const cmd = getCliCommand();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(cmd);
+                appendStatus("CLI command copied to clipboard!", "success");
+            } else {
+                appendStatus(`CLI: ${cmd}`, "cmd");
+            }
+        });
+
+        // --- 8. Premiere Pro Active Sequence Selection & Execution Logic ---
+        processBtn.addEventListener("click", async () => {
+            processBtn.disabled = true;
+            appendStatus("Processing... Initializing active timeline sequence query.", "processing");
+
+            try {
+                // Dynamically import Premiere Pro and Node.js modules in UXP
+                const ppro = window.require ? window.require("premierepro") : (typeof require !== "undefined" ? require("premierepro") : null);
+                const app = ppro?.app || window.app || (typeof window !== "undefined" && window.app) || (typeof app !== "undefined" ? app : null);
+                const child_process = window.require ? window.require("child_process") : (typeof require !== "undefined" ? require("child_process") : null);
+                const nodePath = window.require ? window.require("path") : (typeof require !== "undefined" ? require("path") : null);
+
+                // Handle Web / Cloudflare Browser Demo Mode gracefully
+                if (!app || !app.project) {
+                    appendStatus("[WEB DEMO] Running outside Adobe Premiere Pro. Simulating 35mm reconstruction pipeline...", "processing");
+                    const era = eraProfiles[eraDropdown.value]?.name || "1970s Panavision";
+                    const camera = cameraModifiers[cameraDropdown.value]?.name || "Standard";
+                    const balance = balanceDropdown.value.toUpperCase();
+                    
+                    activeClipName.textContent = "Demo_Track1_35mm.mov";
+                    
+                    setTimeout(() => {
+                        appendStatus(`Target Sequence: "Active Timeline" | Track 1 Target: "Demo_Track1_35mm.mov"`, "info");
+                        appendStatus(`Optical Profile: Era: [${era}], Camera: [${camera}], Emulsion: [${balance}]`, "info");
+                    }, 350);
+
+                    setTimeout(() => {
+                        appendStatus("Applying MTF peripheral optical softness and 215-threshold red halation diffusion...", "processing");
+                        renderPreview();
+                    }, 700);
+
+                    setTimeout(() => {
+                        appendStatus("Synthesizing log-luminance modulated silver halide crystal grain...", "processing");
+                    }, 1100);
+
+                    setTimeout(() => {
+                        processBtn.disabled = false;
+                        appendStatus("Success: Simulated 35mm Reconstruction complete!", "success");
+                        appendStatus(`Output generated: Demo_Track1_35mm_reconstructed.mp4`, "success");
+                        appendStatus(`Command: ${getCliCommand("Demo_Track1_35mm.mov", "Demo_Track1_35mm_reconstructed.mp4")}`, "cmd");
+                    }, 1500);
+
+                    return;
+                }
+
+                if (!app.project.activeSequence) {
+                    throw new Error("No active sequence found. Please open a sequence in the timeline.");
+                }
+
+                // Call asynchronous UXP Sequence Selection API
+                const selection = await app.project.activeSequence.getSelection();
+                if (!selection || selection.length === 0) {
+                    throw new Error("No clip selected on timeline. Please select a clip on Track 1.");
+                }
+
+                // Cross-reference with Track 1 (videoTracks[0])
+                let targetClip = null;
+                try {
+                    const videoTracks = app.project.activeSequence.videoTracks;
+                    if (videoTracks && videoTracks.length > 0) {
+                        const track1 = videoTracks[0];
+                        if (track1 && track1.clips) {
+                            const track1Clips = Array.from(track1.clips);
+                            targetClip = selection.find(selItem => 
+                                track1Clips.some(c => c === selItem || c.nodeId === selItem.nodeId || (c.name && c.name === selItem.name))
+                            );
+                        }
+                    }
+                } catch (trackErr) {
+                    console.warn("Track 1 query note:", trackErr);
+                }
+
+                // If not filtered specifically on Track 1, take primary selection
+                if (!targetClip) {
+                    targetClip = selection[0];
+                }
+
+                const clipDisplayName = targetClip.name || "Selected Clip";
+                activeClipName.textContent = clipDisplayName;
+                appendStatus(`Found target clip: "${clipDisplayName}". Resolving media path...`, "info");
+
+                // Asynchronously resolve the native media path
+                let mediaPath = null;
+                if (targetClip.projectItem) {
+                    if (typeof targetClip.projectItem.getMediaPath === "function") {
+                        mediaPath = await targetClip.projectItem.getMediaPath();
+                    } else if (targetClip.projectItem.mediaPath) {
+                        mediaPath = targetClip.projectItem.mediaPath;
+                    }
+                } else if (typeof targetClip.getMediaPath === "function") {
+                    mediaPath = await targetClip.getMediaPath();
+                } else if (targetClip.mediaPath) {
+                    mediaPath = targetClip.mediaPath;
+                }
+
+                if (!mediaPath) {
+                    throw new Error(`Could not resolve media path for "${clipDisplayName}". Ensure clip links to valid media on disk.`);
+                }
+
+                appendStatus(`Media path resolved: ${mediaPath}`, "info");
+
+                // Resolve timeless.py script location
+                let pluginDir = "";
+                try {
+                    const uxp = window.require ? window.require("uxp") : (typeof require !== "undefined" ? require("uxp") : null);
+                    if (uxp?.storage?.localFileSystem) {
+                        const pluginFolder = await uxp.storage.localFileSystem.getPluginFolder();
+                        pluginDir = pluginFolder.nativePath;
+                    }
+                } catch (e) {
+                    pluginDir = (typeof __dirname !== "undefined") ? __dirname : ".";
+                }
+
+                if (!pluginDir && typeof __dirname !== "undefined") {
+                    pluginDir = __dirname;
+                }
+
+                const scriptPath = nodePath ? nodePath.join(pluginDir, "timeless.py") : "timeless.py";
+
+                // Generate reconstructed output path in media directory
+                let outputPath;
+                if (nodePath) {
+                    const ext = nodePath.extname(mediaPath) || ".mp4";
+                    const base = nodePath.basename(mediaPath, ext);
+                    const dir = nodePath.dirname(mediaPath);
+                    outputPath = nodePath.join(dir, `${base}_35mm_reconstructed${ext}`);
+                } else {
+                    outputPath = mediaPath.replace(/(\.[^.]+)$/, "_35mm_reconstructed$1");
+                }
+
+                // Read parameters from UI
+                const mtf = parseInt(mtfSlider.value, 10);
+                const thresh = parseInt(threshSlider.value, 10);
+                const h_blur = parseInt(hBlurSlider.value, 10);
+                const h_int = parseFloat(hIntSlider.value);
+                const g_int = parseFloat(gIntSlider.value);
+                const g_size = parseFloat(gSizeSlider.value);
+                const balance = balanceDropdown.value;
+
+                // Build python command matching timeless.py argparse flags
+                const cmd = `python "${scriptPath}" --input "${mediaPath}" --output "${outputPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance "${balance}"`;
+
+                appendStatus(`Executing 35mm Reconstruction Engine...`, "processing");
+                appendStatus(`Parameters: Balance=${balance.toUpperCase()}, MTF=${mtf}, Threshold=${thresh}, HalationBlur=${h_blur}, HalationInt=${h_int}, GrainInt=${g_int}, GrainSize=${g_size}`, "info");
+                appendStatus(`Command: ${cmd}`, "cmd");
+
+                if (!child_process || !child_process.exec) {
+                    throw new Error("Node.js child_process is not enabled. Verify manifest.json requiredPermissions.");
+                }
+
+                // Execute the Python pipeline
+                child_process.exec(cmd, (error, stdout, stderr) => {
+                    processBtn.disabled = false;
+
+                    if (error) {
+                        appendStatus(`Error: Processing failed (${error.message})`, "error");
+                        if (stderr) appendStatus(`Stderr: ${stderr}`, "error");
+                        return;
+                    }
+
+                    if (stdout && stdout.trim()) {
+                        appendStatus(`Output: ${stdout.trim()}`, "info");
+                    }
+
+                    appendStatus(`Success: 35mm Reconstruction complete!`, "success");
+                    appendStatus(`Output saved: ${outputPath}`, "success");
+
+                    // Attempt non-blocking auto-import into Premiere Pro project bin
+                    try {
+                        if (app.project && typeof app.project.importFiles === "function") {
+                            app.project.importFiles([outputPath], true, app.project.rootItem, false);
+                            appendStatus(`[Premiere] Automatically imported reconstructed clip into Project Bin.`, "info");
+                        }
+                    } catch (importErr) {
+                        console.warn("Auto-import note:", importErr);
+                    }
+                });
+
+            } catch (err) {
+                processBtn.disabled = false;
+                appendStatus(`Error: ${err.message}`, "error");
+            }
+        });
+
+        // Initialize displays and canvas
+        applyProfiles();
+    </script>
+</body>
+</html>
