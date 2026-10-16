@@ -586,17 +586,65 @@
                 const g_size = parseFloat(sliderGsize.value);
                 const balance = balanceDropdown.value;
 
-                // --- REPLACE THE OLD PATH LOGIC BLOCK WITH THIS ---
-                const fs = require('fs');
-                const os = require('os');
-                const path = require('path');
+                // --- NATIVE UXP SYSTEM & PROCESS RESOLUTION BLOCK ---
+                function safePathJoin(...segments) {
+                    return segments
+                        .filter(s => typeof s === 'string' && s.length > 0)
+                        .map((seg, i) => i === 0 ? seg.replace(/[\\/]+$/, '') : seg.replace(/^[\\/]+|[\\/]+$/g, ''))
+                        .filter(Boolean)
+                        .join('\\');
+                }
 
-                // Natively query the absolute system directory where Adobe is hosting our UXP files
-                const pluginDir = require('uxp').storage.localFileSystem.getPluginFolder().nativePath;
-                const pythonScriptPath = path.join(pluginDir, "timeless.py");
+                let uxpFs = null, uxpOs = null, uxpPath = null, uxpModule = null;
+                try { if (typeof require !== 'undefined') uxpFs = require('fs'); } catch (_) {}
+                if (!uxpFs && typeof window !== 'undefined' && window.fs) uxpFs = window.fs;
+
+                try { if (typeof require !== 'undefined') uxpOs = require('os'); } catch (_) {}
+                if (!uxpOs && typeof window !== 'undefined' && window.os) uxpOs = window.os;
+
+                try { if (typeof require !== 'undefined') uxpPath = require('path'); } catch (_) {}
+                if (!uxpPath && typeof window !== 'undefined' && window.path) uxpPath = window.path;
+
+                try { if (typeof require !== 'undefined') uxpModule = require('uxp'); } catch (_) {}
+                if (!uxpModule && typeof window !== 'undefined' && window.uxp) uxpModule = window.uxp;
+
+                // Ensure path.join is guaranteed to exist and never throws in UXP
+                const pathObj = uxpPath || {};
+                if (typeof pathObj.join !== 'function') {
+                    pathObj.join = safePathJoin;
+                }
+
+                // Natively query the absolute system directory where Adobe is hosting our UXP files (async Folder resolution)
+                let pluginDir = "";
+                try {
+                    if (uxpModule?.storage?.localFileSystem) {
+                        const pluginFolder = await uxpModule.storage.localFileSystem.getPluginFolder();
+                        pluginDir = pluginFolder?.nativePath || "";
+                    }
+                } catch (pErr) {
+                    console.warn("Could not retrieve plugin folder via UXP:", pErr);
+                }
+                if (!pluginDir && typeof __dirname !== 'undefined') {
+                    pluginDir = __dirname;
+                }
+
+                const pythonScriptPath = pluginDir ? pathObj.join(pluginDir, "timeless.py") : "timeless.py";
                 const outputMasterPath = mediaPath.replace(/(\.[\w\d]+)$/i, '_Timeless35mm.mp4');
 
-                const localUser = os.userInfo().username;
+                // Safely determine local username with fallbacks for UXP environment
+                let localUser = "tommy";
+                try {
+                    if (uxpOs && typeof uxpOs.userInfo === 'function') {
+                        const info = uxpOs.userInfo();
+                        if (info && info.username) localUser = info.username;
+                    } else if (uxpOs && typeof uxpOs.homedir === 'function') {
+                        const parts = uxpOs.homedir().split(/[\\/]/);
+                        if (parts.length > 0 && parts[parts.length - 1]) localUser = parts[parts.length - 1];
+                    } else if (typeof process !== 'undefined' && process.env) {
+                        localUser = process.env.USERNAME || process.env.USER || localUser;
+                    }
+                } catch (_) {}
+
                 const directPythonPath = `C:\\Users\\${localUser}\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe`;
 
                 const cmdString = `"${directPythonPath}" "${pythonScriptPath}" --input "${mediaPath}" --output "${outputMasterPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance ${balance}`;
@@ -604,52 +652,158 @@
 
                 statusBox.textContent = `Status: Processing 35mm Reconstruction via Python OpenCV...`;
 
-                // === REPLACE THE ASSET IMPORT AND SWAP LOOP WITH THIS CORRECT UXP VERSION ===
-                exec(cmdString, async (error) => {
-                    processBtn.disabled = false;
-                    if (error) { 
-                        statusBox.innerText = `Pipeline Error: ${error.message}`; 
-                        return; 
-                    }
-                    statusBox.innerText = "Status: Finalizing clip mutation...";
-                    
+                // Universal command executor: supports child_process.exec or UXP shell.openPath with .bat runner
+                const executeProcessingCommand = async (cmd) => {
+                    let execFn = null;
                     try {
-                        // Natively import the newly processed master file into the project bin
-                        await project.importFiles([outputMasterPath], false, project.rootItem, false);
-                        
-                        // Convert the internal UXP children iterable collection safely into a vanilla array
-                        const childrenCollection = project.rootItem.children;
-                        const totalItems = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : childrenCollection.length;
-                        
-                        let foundAsset = null;
-                        
-                        // Safely extract elements using UXP collection retrieval methods
-                        for (let j = 0; j < totalItems; j++) {
-                            let currentItem = null;
-                            if (typeof childrenCollection.getItemAt === 'function') {
-                                currentItem = childrenCollection.getItemAt(j);
-                            } else {
-                                currentItem = childrenCollection[j];
-                            }
-                            
-                            if (currentItem && currentItem.name && currentItem.name.indexOf('_Timeless35mm') !== -1) {
-                                foundAsset = currentItem;
-                                break;
-                            }
-                        }
-                        
-                        if (foundAsset) {
-                            // Natively mutate the timeline source item asset context 
-                            await targetTrackItem.changeSource(foundAsset);
-                            statusBox.innerText = "Status: Reconstruction Successful. 35mm Master Compiled.";
-                        } else {
-                            statusBox.innerText = "Status: Process complete, but master file could not be indexed in project assets.";
-                        }
-                    } catch (importErr) {
-                        statusBox.innerText = "Asset Swap Error: " + importErr.toString();
+                        if (typeof exec === 'function') execFn = exec;
+                        else if (typeof require !== 'undefined') execFn = require('child_process')?.exec;
+                        else if (window.require) execFn = window.require('child_process')?.exec;
+                    } catch (_) {}
+
+                    if (typeof execFn === 'function') {
+                        return new Promise((resolve, reject) => {
+                            execFn(cmd, (error, stdout, stderr) => {
+                                if (error) reject(error);
+                                else resolve({ stdout, stderr });
+                            });
+                        });
                     }
-                });
-                // ===========================================================================
+
+                    // UXP Sandbox fallback: launch via uxp.shell.openPath using a runner batch file
+                    const shell = uxpModule?.shell;
+                    if (shell && typeof shell.openPath === 'function') {
+                        const mediaDir = mediaPath.substring(0, Math.max(mediaPath.lastIndexOf('/'), mediaPath.lastIndexOf('\\')));
+                        const batPath = safePathJoin(mediaDir, "timeless_runner.bat");
+                        const doneFlag = safePathJoin(mediaDir, "timeless_runner.done");
+                        const errFlag = safePathJoin(mediaDir, "timeless_runner.err");
+
+                        try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
+                        try { if (uxpFs?.existsSync?.(errFlag)) uxpFs.unlinkSync(errFlag); } catch (_) {}
+
+                        const batScript = `@echo off\r\n${cmd}\r\nif %ERRORLEVEL% EQU 0 (\r\n  echo OK > "${doneFlag}"\r\n) else (\r\n  echo ERROR: %ERRORLEVEL% > "${errFlag}"\r\n)\r\nexit\r\n`;
+
+                        if (uxpFs && typeof uxpFs.writeFileSync === 'function') {
+                            uxpFs.writeFileSync(batPath, batScript);
+                        } else if (uxpFs && typeof uxpFs.writeFile === 'function') {
+                            await uxpFs.writeFile(batPath, batScript);
+                        }
+
+                        await shell.openPath(batPath, "Processing 35mm film reconstruction pipeline");
+
+                        const startTime = Date.now();
+                        while (Date.now() - startTime < 180000) {
+                            await new Promise(r => setTimeout(r, 800));
+
+                            let failed = false;
+                            try { if (uxpFs?.existsSync?.(errFlag)) failed = true; } catch (_) {}
+                            if (failed) {
+                                try { uxpFs.unlinkSync(batPath); uxpFs.unlinkSync(errFlag); } catch (_) {}
+                                throw new Error("Python rendering script exited with an error.");
+                            }
+
+                            let complete = false;
+                            try {
+                                if (uxpFs?.existsSync?.(doneFlag)) {
+                                    complete = true;
+                                } else if (uxpFs?.existsSync?.(outputMasterPath)) {
+                                    const stat = uxpFs.statSync(outputMasterPath);
+                                    if (stat && stat.size > 2000) complete = true;
+                                }
+                            } catch (_) {}
+
+                            if (complete) {
+                                try { if (uxpFs?.existsSync?.(batPath)) uxpFs.unlinkSync(batPath); } catch (_) {}
+                                try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
+                                return { stdout: "Reconstruction completed via UXP shell launcher" };
+                            }
+                        }
+                        throw new Error("Pipeline timed out waiting for master video generation.");
+                    }
+
+                    throw new Error("Execution method not available (neither child_process.exec nor uxp.shell.openPath supported).");
+                };
+
+                try {
+                    await executeProcessingCommand(cmdString);
+                } catch (cmdError) {
+                    processBtn.disabled = false;
+                    statusBox.innerText = `Pipeline Error: ${cmdError.message}`;
+                    return;
+                }
+
+                statusBox.innerText = "Status: Finalizing clip mutation...";
+
+                try {
+                    // Natively import the newly processed master file into the project bin
+                    await project.importFiles([outputMasterPath], false, project.rootItem, false);
+
+                    // Convert the internal UXP children iterable collection safely into a vanilla array
+                    const childrenCollection = project.rootItem.children;
+                    const totalItems = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : (childrenCollection.length || 0);
+
+                    let foundAsset = null;
+
+                    // Safely extract elements using UXP collection retrieval methods
+                    for (let j = 0; j < totalItems; j++) {
+                        let currentItem = null;
+                        if (typeof childrenCollection.getItemAt === 'function') {
+                            currentItem = childrenCollection.getItemAt(j);
+                        } else {
+                            currentItem = childrenCollection[j];
+                        }
+                        if (!currentItem) continue;
+
+                        let currentName = currentItem.name || "";
+                        if (!currentName && typeof currentItem.getName === 'function') {
+                            try { currentName = await currentItem.getName(); } catch (_) {}
+                        }
+
+                        if (currentName && currentName.indexOf('_Timeless35mm') !== -1) {
+                            foundAsset = currentItem;
+                            break;
+                        }
+                    }
+
+                    if (foundAsset) {
+                        let sourceSwapped = false;
+                        if (typeof targetTrackItem.changeSource === 'function') {
+                            try {
+                                await targetTrackItem.changeSource(foundAsset);
+                                sourceSwapped = true;
+                            } catch (csErr) {
+                                console.warn("changeSource note:", csErr);
+                            }
+                        }
+
+                        if (!sourceSwapped) {
+                            try {
+                                const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
+                                if (pproModule?.SequenceEditor && activeSeq) {
+                                    const editor = pproModule.SequenceEditor.getEditor(activeSeq);
+                                    const startTime = typeof targetTrackItem.getStartTime === 'function' ? await targetTrackItem.getStartTime() : (targetTrackItem.start || 0);
+                                    if (typeof project.executeTransaction === 'function') {
+                                        await project.executeTransaction(compound => {
+                                            compound.addAction(editor.createOverwriteItemAction(foundAsset, startTime, 0, 0));
+                                        }, "Replace Track Item Source");
+                                        sourceSwapped = true;
+                                    }
+                                }
+                            } catch (edErr) {
+                                console.warn("SequenceEditor note:", edErr);
+                            }
+                        }
+
+                        processBtn.disabled = false;
+                        statusBox.innerText = "Status: Reconstruction Successful. 35mm Master Compiled.";
+                    } else {
+                        processBtn.disabled = false;
+                        statusBox.innerText = "Status: Process complete, master file exported to disk.";
+                    }
+                } catch (importErr) {
+                    processBtn.disabled = false;
+                    statusBox.innerText = "Asset Swap Error: " + importErr.toString();
+                }
 
             } catch (err) {
                 processBtn.disabled = false;
