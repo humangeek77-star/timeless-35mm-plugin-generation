@@ -677,11 +677,13 @@
                         const batPath = safePathJoin(mediaDir, "timeless_runner.bat");
                         const doneFlag = safePathJoin(mediaDir, "timeless_runner.done");
                         const errFlag = safePathJoin(mediaDir, "timeless_runner.err");
+                        const logPath = safePathJoin(mediaDir, "timeless_runner.log");
 
                         try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
                         try { if (uxpFs?.existsSync?.(errFlag)) uxpFs.unlinkSync(errFlag); } catch (_) {}
+                        try { if (uxpFs?.existsSync?.(logPath)) uxpFs.unlinkSync(logPath); } catch (_) {}
 
-                        const batScript = `@echo off\r\n${cmd}\r\nif %ERRORLEVEL% EQU 0 (\r\n  echo OK > "${doneFlag}"\r\n) else (\r\n  echo ERROR: %ERRORLEVEL% > "${errFlag}"\r\n)\r\nexit\r\n`;
+                        const batScript = `@echo off\r\n${cmd} > "${logPath}" 2>&1\r\nif %ERRORLEVEL% EQU 0 (\r\n  echo OK > "${doneFlag}"\r\n) else (\r\n  echo ERROR: %ERRORLEVEL% > "${errFlag}"\r\n)\r\nexit\r\n`;
 
                         if (uxpFs && typeof uxpFs.writeFileSync === 'function') {
                             uxpFs.writeFileSync(batPath, batScript);
@@ -689,17 +691,31 @@
                             await uxpFs.writeFile(batPath, batScript);
                         }
 
-                        await shell.openPath(batPath, "Processing 35mm film reconstruction pipeline");
+                        statusBox.textContent = `Status: Security Prompt: Please click "Allow" on the Adobe Permission dialog to start processing...`;
+
+                        await shell.openPath(batPath, "Authorize Timeless 35mm to run Python OpenCV reconstruction.");
 
                         const startTime = Date.now();
+                        let hasUpdatedRunningStatus = false;
                         while (Date.now() - startTime < 180000) {
                             await new Promise(r => setTimeout(r, 800));
+
+                            if (!hasUpdatedRunningStatus && (Date.now() - startTime > 3000)) {
+                                statusBox.textContent = `Status: Rendering 35mm film reconstruction (processing video frames)...`;
+                                hasUpdatedRunningStatus = true;
+                            }
 
                             let failed = false;
                             try { if (uxpFs?.existsSync?.(errFlag)) failed = true; } catch (_) {}
                             if (failed) {
+                                let logContent = "";
+                                try {
+                                    if (uxpFs?.existsSync?.(logPath) && uxpFs.readFileSync) {
+                                        logContent = uxpFs.readFileSync(logPath, 'utf8');
+                                    }
+                                } catch (_) {}
                                 try { uxpFs.unlinkSync(batPath); uxpFs.unlinkSync(errFlag); } catch (_) {}
-                                throw new Error("Python rendering script exited with an error.");
+                                throw new Error(`Python rendering script failed: ${logContent ? logContent.slice(0, 300) : 'Non-zero exit code'}`);
                             }
 
                             let complete = false;
@@ -715,6 +731,7 @@
                             if (complete) {
                                 try { if (uxpFs?.existsSync?.(batPath)) uxpFs.unlinkSync(batPath); } catch (_) {}
                                 try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
+                                try { if (uxpFs?.existsSync?.(logPath)) uxpFs.unlinkSync(logPath); } catch (_) {}
                                 return { stdout: "Reconstruction completed via UXP shell launcher" };
                             }
                         }
