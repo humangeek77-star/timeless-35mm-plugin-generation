@@ -348,6 +348,7 @@
                 if (!targetClip) {
                     targetClip = selection[0];
                 }
+                const targetTrackItem = targetClip;
 
                 statusBox.textContent = `Status: Resolving path for clip "${targetClip.name || "Selected Clip"}"...`;
 
@@ -396,25 +397,52 @@
 
                 statusBox.textContent = `Status: Processing 35mm Reconstruction via Python OpenCV...`;
 
-                exec(cmdString, (error, stdout, stderr) => {
+                // === REPLACE THE ASSET IMPORT AND SWAP LOOP WITH THIS CORRECT UXP VERSION ===
+                exec(cmdString, async (error) => {
                     processBtn.disabled = false;
-                    if (error) {
-                        statusBox.textContent = `Status Error: ${error.message}`;
-                        return;
+                    if (error) { 
+                        statusBox.innerText = `Pipeline Error: ${error.message}`; 
+                        return; 
                     }
-                    statusBox.textContent = `Status: Success! Saved to ${outputMasterPath}`;
-
-                    // Auto-import to Premiere Pro Project bin
+                    statusBox.innerText = "Status: Finalizing clip mutation...";
+                    
                     try {
-                        if (project && typeof project.importFiles === 'function') {
-                            project.importFiles([outputMasterPath], true, project.rootItem || null, false);
-                        } else if (app && app.project && typeof app.project.importFiles === 'function') {
-                            app.project.importFiles([outputMasterPath], true, app.project.rootItem, false);
+                        // Natively import the newly processed master file into the project bin
+                        await project.importFiles([outputMasterPath], false, project.rootItem, false);
+                        
+                        // Convert the internal UXP children iterable collection safely into a vanilla array
+                        const childrenCollection = project.rootItem.children;
+                        const totalItems = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : childrenCollection.length;
+                        
+                        let foundAsset = null;
+                        
+                        // Safely extract elements using UXP collection retrieval methods
+                        for (let j = 0; j < totalItems; j++) {
+                            let currentItem = null;
+                            if (typeof childrenCollection.getItemAt === 'function') {
+                                currentItem = childrenCollection.getItemAt(j);
+                            } else {
+                                currentItem = childrenCollection[j];
+                            }
+                            
+                            if (currentItem && currentItem.name && currentItem.name.indexOf('_Timeless35mm') !== -1) {
+                                foundAsset = currentItem;
+                                break;
+                            }
+                        }
+                        
+                        if (foundAsset) {
+                            // Natively mutate the timeline source item asset context 
+                            await targetTrackItem.changeSource(foundAsset);
+                            statusBox.innerText = "Status: Reconstruction Successful. 35mm Master Compiled.";
+                        } else {
+                            statusBox.innerText = "Status: Process complete, but master file could not be indexed in project assets.";
                         }
                     } catch (importErr) {
-                        console.warn("Auto-import note:", importErr);
+                        statusBox.innerText = "Asset Swap Error: " + importErr.toString();
                     }
                 });
+                // ===========================================================================
 
             } catch (err) {
                 processBtn.disabled = false;
