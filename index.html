@@ -316,58 +316,187 @@
                     throw new Error("No active sequence found. Open a sequence in Premiere Pro.");
                 }
 
-                // Asynchronously get selection
-                let selection = null;
+                // 1. Asynchronously retrieve timeline selection
+                let selectionObj = null;
                 if (typeof activeSeq.getSelection === 'function') {
-                    selection = await activeSeq.getSelection();
+                    selectionObj = await activeSeq.getSelection();
                 } else if (activeSeq.selection) {
-                    selection = activeSeq.selection;
+                    selectionObj = activeSeq.selection;
                 }
 
-                if (!selection || selection.length === 0) {
+                // 2. Extract selected items (UXP TrackItemSelection vs vanilla Array)
+                let selectedItems = [];
+                if (selectionObj) {
+                    if (typeof selectionObj.getTrackItems === 'function') {
+                        try {
+                            const raw = await selectionObj.getTrackItems();
+                            selectedItems = Array.isArray(raw) ? raw : Array.from(raw || []);
+                        } catch (e) {
+                            console.warn("selection.getTrackItems() error:", e);
+                        }
+                    } else if (Array.isArray(selectionObj)) {
+                        selectedItems = selectionObj;
+                    } else if (selectionObj.trackItems) {
+                        selectedItems = Array.isArray(selectionObj.trackItems) ? selectionObj.trackItems : Array.from(selectionObj.trackItems);
+                    } else if (selectionObj.items) {
+                        selectedItems = Array.isArray(selectionObj.items) ? selectionObj.items : Array.from(selectionObj.items);
+                    } else if (typeof selectionObj.numItems === 'number') {
+                        selectedItems = [];
+                        for (let i = 0; i < selectionObj.numItems; i++) {
+                            const item = typeof selectionObj.getItemAt === 'function' ? selectionObj.getItemAt(i) : selectionObj[i];
+                            if (item) selectedItems.push(item);
+                        }
+                    }
+                }
+
+                // 3. Fallback: If no selection returned from getSelection(), inspect Track 1 (V1)
+                if (!selectedItems || selectedItems.length === 0) {
+                    try {
+                        let track1 = null;
+                        if (typeof activeSeq.getVideoTrack === 'function') {
+                            track1 = await activeSeq.getVideoTrack(0);
+                        } else if (activeSeq.videoTracks && activeSeq.videoTracks.length > 0) {
+                            track1 = activeSeq.videoTracks[0];
+                        }
+
+                        if (track1) {
+                            let trackClips = [];
+                            if (typeof track1.getTrackItems === 'function') {
+                                trackClips = await track1.getTrackItems(1, false);
+                            } else if (track1.clips) {
+                                trackClips = Array.from(track1.clips);
+                            }
+
+                            if (trackClips && trackClips.length > 0) {
+                                const markedSelected = trackClips.find(c => c && (c.isSelected || c.selected));
+                                if (markedSelected) {
+                                    selectedItems = [markedSelected];
+                                } else if (trackClips.length === 1) {
+                                    selectedItems = [trackClips[0]];
+                                } else {
+                                    selectedItems = [trackClips[0]];
+                                }
+                            }
+                        }
+                    } catch (tErr) {
+                        console.warn("Track 1 query note:", tErr);
+                    }
+                }
+
+                if (!selectedItems || selectedItems.length === 0 || !selectedItems[0]) {
                     throw new Error("No clip selected on timeline. Highlight a clip on Track 1.");
                 }
 
-                // Cross-reference Track 1 (videoTracks[0])
-                let targetClip = null;
+                const targetClip = selectedItems[0];
+                const targetTrackItem = targetClip;
+                const clipName = targetClip?.name || targetClip?.projectItem?.name || "Selected Clip";
+
+                statusBox.textContent = `Status: Resolving path for clip "${clipName}"...`;
+
+                // 4. Resolve media path via modern UXP ClipProjectItem cast, direct getters, and Project bin search
+                let mediaPath = null;
+                const projItem = targetClip?.projectItem || null;
+
+                // Strategy A: Cast to ClipProjectItem (modern UXP 25+)
                 try {
-                    const videoTracks = activeSeq.videoTracks;
-                    if (videoTracks && videoTracks.length > 0) {
-                        const track1 = videoTracks[0];
-                        if (track1 && track1.clips) {
-                            const track1Clips = Array.from(track1.clips);
-                            targetClip = selection.find(selItem =>
-                                track1Clips.some(c => c === selItem || c.nodeId === selItem.nodeId || (c.name && c.name === selItem.name))
-                            );
+                    const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
+                    const ClipProjectItemClass = pproModule?.ClipProjectItem;
+                    if (ClipProjectItemClass && projItem) {
+                        const castItem = typeof ClipProjectItemClass.cast === 'function' ? ClipProjectItemClass.cast(projItem) : null;
+                        if (castItem) {
+                            if (typeof castItem.getMediaFilePath === 'function') {
+                                mediaPath = await castItem.getMediaFilePath();
+                            } else if (typeof castItem.getMediaPath === 'function') {
+                                mediaPath = await castItem.getMediaPath();
+                            } else if (castItem.mediaPath) {
+                                mediaPath = castItem.mediaPath;
+                            }
                         }
                     }
-                } catch (tErr) {
-                    console.warn("Track query note:", tErr);
+                } catch (cErr) {
+                    console.warn("ClipProjectItem cast note:", cErr);
                 }
 
-                if (!targetClip) {
-                    targetClip = selection[0];
-                }
-                const targetTrackItem = targetClip;
-
-                statusBox.textContent = `Status: Resolving path for clip "${targetClip.name || "Selected Clip"}"...`;
-
-                // Resolve media path
-                let mediaPath = null;
-                if (targetClip.projectItem) {
-                    if (typeof targetClip.projectItem.getMediaPath === 'function') {
-                        mediaPath = await targetClip.projectItem.getMediaPath();
-                    } else if (targetClip.projectItem.mediaPath) {
-                        mediaPath = targetClip.projectItem.mediaPath;
+                // Strategy B: Direct methods on projItem
+                if (!mediaPath && projItem) {
+                    try {
+                        if (typeof projItem.getMediaFilePath === 'function') {
+                            mediaPath = await projItem.getMediaFilePath();
+                        } else if (typeof projItem.getMediaPath === 'function') {
+                            mediaPath = await projItem.getMediaPath();
+                        } else if (projItem.mediaPath) {
+                            mediaPath = projItem.mediaPath;
+                        } else if (projItem.treePath) {
+                            mediaPath = projItem.treePath;
+                        }
+                    } catch (pErr) {
+                        console.warn("projItem path note:", pErr);
                     }
-                } else if (typeof targetClip.getMediaPath === 'function') {
-                    mediaPath = await targetClip.getMediaPath();
-                } else if (targetClip.mediaPath) {
-                    mediaPath = targetClip.mediaPath;
+                }
+
+                // Strategy C: Methods directly on targetClip
+                if (!mediaPath && targetClip) {
+                    try {
+                        if (typeof targetClip.getMediaFilePath === 'function') {
+                            mediaPath = await targetClip.getMediaFilePath();
+                        } else if (typeof targetClip.getMediaPath === 'function') {
+                            mediaPath = await targetClip.getMediaPath();
+                        } else if (targetClip.mediaPath) {
+                            mediaPath = targetClip.mediaPath;
+                        }
+                    } catch (tErr) {
+                        console.warn("targetClip path note:", tErr);
+                    }
+                }
+
+                // Strategy D: Search project rootItem bin for matching item
+                if (!mediaPath && project && project.rootItem && project.rootItem.children) {
+                    try {
+                        const cleanName = (clipName || "").replace(/\s*\[[AV\d]+\]\s*$/i, "").trim().toLowerCase();
+                        const childrenCollection = project.rootItem.children;
+                        const total = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : (childrenCollection.length || 0);
+
+                        for (let k = 0; k < total; k++) {
+                            const binItem = typeof childrenCollection.getItemAt === 'function' ? childrenCollection.getItemAt(k) : childrenCollection[k];
+                            if (!binItem) continue;
+                            const binItemName = (binItem.name || "").trim().toLowerCase();
+
+                            if (binItemName === cleanName || (cleanName && binItemName.includes(cleanName)) || (binItemName && cleanName.includes(binItemName))) {
+                                try {
+                                    const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
+                                    const ClipProjectItemClass = pproModule?.ClipProjectItem;
+                                    if (ClipProjectItemClass && typeof ClipProjectItemClass.cast === 'function') {
+                                        const castBin = ClipProjectItemClass.cast(binItem);
+                                        if (castBin) {
+                                            if (typeof castBin.getMediaFilePath === 'function') mediaPath = await castBin.getMediaFilePath();
+                                            else if (typeof castBin.getMediaPath === 'function') mediaPath = await castBin.getMediaPath();
+                                            else if (castBin.mediaPath) mediaPath = castBin.mediaPath;
+                                        }
+                                    }
+                                } catch (_) {}
+
+                                if (!mediaPath) {
+                                    if (typeof binItem.getMediaFilePath === 'function') {
+                                        mediaPath = await binItem.getMediaFilePath();
+                                    } else if (typeof binItem.getMediaPath === 'function') {
+                                        mediaPath = await binItem.getMediaPath();
+                                    } else if (binItem.mediaPath) {
+                                        mediaPath = binItem.mediaPath;
+                                    } else if (binItem.treePath) {
+                                        mediaPath = binItem.treePath;
+                                    }
+                                }
+
+                                if (mediaPath) break;
+                            }
+                        }
+                    } catch (binErr) {
+                        console.warn("Bin media resolution note:", binErr);
+                    }
                 }
 
                 if (!mediaPath) {
-                    throw new Error("Could not resolve disk media path for selected clip.");
+                    throw new Error(`Could not resolve disk media path for clip "${clipName}". Ensure clip media is linked to a file on disk.`);
                 }
 
                 // Read parameters from UI
