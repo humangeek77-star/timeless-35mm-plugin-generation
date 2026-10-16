@@ -389,18 +389,48 @@
 
                 const targetClip = selectedItems[0];
                 const targetTrackItem = targetClip;
-                const clipName = targetClip?.name || targetClip?.projectItem?.name || "Selected Clip";
+
+                // Asynchronously extract clip name (UXP getName() method vs name property)
+                let clipName = "";
+                if (typeof targetClip.getName === 'function') {
+                    try { clipName = await targetClip.getName(); } catch (_) {}
+                }
+                if (!clipName && targetClip.name) {
+                    clipName = targetClip.name;
+                }
+
+                // Asynchronously extract linked projectItem (UXP getProjectItem() method vs projectItem property)
+                let projItem = null;
+                if (typeof targetClip.getProjectItem === 'function') {
+                    try { projItem = await targetClip.getProjectItem(); } catch (_) {}
+                }
+                if (!projItem && targetClip.projectItem) {
+                    projItem = targetClip.projectItem;
+                }
+
+                // If clipName is still empty, query it from projItem
+                if (!clipName && projItem) {
+                    if (typeof projItem.getName === 'function') {
+                        try { clipName = await projItem.getName(); } catch (_) {}
+                    }
+                    if (!clipName && projItem.name) {
+                        clipName = projItem.name;
+                    }
+                }
+
+                if (!clipName) {
+                    clipName = "Selected Clip";
+                }
 
                 statusBox.textContent = `Status: Resolving path for clip "${clipName}"...`;
 
                 // 4. Resolve media path via modern UXP ClipProjectItem cast, direct getters, and Project bin search
                 let mediaPath = null;
-                const projItem = targetClip?.projectItem || null;
 
                 // Strategy A: Cast to ClipProjectItem (modern UXP 25+)
                 try {
                     const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
-                    const ClipProjectItemClass = pproModule?.ClipProjectItem;
+                    const ClipProjectItemClass = pproModule?.ClipProjectItem || app?.ClipProjectItem;
                     if (ClipProjectItemClass && projItem) {
                         const castItem = typeof ClipProjectItemClass.cast === 'function' ? ClipProjectItemClass.cast(projItem) : null;
                         if (castItem) {
@@ -449,22 +479,34 @@
                     }
                 }
 
-                // Strategy D: Search project rootItem bin for matching item
+                // Strategy D: Search project rootItem bin for matching item name
                 if (!mediaPath && project && project.rootItem && project.rootItem.children) {
                     try {
                         const cleanName = (clipName || "").replace(/\s*\[[AV\d]+\]\s*$/i, "").trim().toLowerCase();
+                        const cleanBase = cleanName.replace(/\.[a-z0-9]+$/i, "").trim().toLowerCase();
                         const childrenCollection = project.rootItem.children;
                         const total = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : (childrenCollection.length || 0);
 
                         for (let k = 0; k < total; k++) {
                             const binItem = typeof childrenCollection.getItemAt === 'function' ? childrenCollection.getItemAt(k) : childrenCollection[k];
                             if (!binItem) continue;
-                            const binItemName = (binItem.name || "").trim().toLowerCase();
+                            let binItemName = binItem.name || "";
+                            if (!binItemName && typeof binItem.getName === 'function') {
+                                try { binItemName = await binItem.getName(); } catch (_) {}
+                            }
+                            binItemName = (binItemName || "").trim().toLowerCase();
+                            const binBase = binItemName.replace(/\.[a-z0-9]+$/i, "").trim().toLowerCase();
 
-                            if (binItemName === cleanName || (cleanName && binItemName.includes(cleanName)) || (binItemName && cleanName.includes(binItemName))) {
+                            // Compare names
+                            const matches = (binItemName === cleanName) ||
+                                            (cleanBase && binItemName.includes(cleanBase)) ||
+                                            (binBase && cleanName.includes(binBase)) ||
+                                            (cleanBase && cleanBase === binBase);
+
+                            if (matches) {
                                 try {
                                     const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
-                                    const ClipProjectItemClass = pproModule?.ClipProjectItem;
+                                    const ClipProjectItemClass = pproModule?.ClipProjectItem || app?.ClipProjectItem;
                                     if (ClipProjectItemClass && typeof ClipProjectItemClass.cast === 'function') {
                                         const castBin = ClipProjectItemClass.cast(binItem);
                                         if (castBin) {
@@ -492,6 +534,42 @@
                         }
                     } catch (binErr) {
                         console.warn("Bin media resolution note:", binErr);
+                    }
+                }
+
+                // Strategy E: Standalone video asset fallback from project bin
+                if (!mediaPath && project && project.rootItem && project.rootItem.children) {
+                    try {
+                        const childrenCollection = project.rootItem.children;
+                        const total = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : (childrenCollection.length || 0);
+
+                        for (let k = 0; k < total; k++) {
+                            const item = typeof childrenCollection.getItemAt === 'function' ? childrenCollection.getItemAt(k) : childrenCollection[k];
+                            if (!item) continue;
+                            let itemPath = null;
+                            try {
+                                const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
+                                const ClipProjectItemClass = pproModule?.ClipProjectItem || app?.ClipProjectItem;
+                                const cast = ClipProjectItemClass?.cast ? ClipProjectItemClass.cast(item) : item;
+                                if (cast && typeof cast.getMediaFilePath === 'function') {
+                                    itemPath = await cast.getMediaFilePath();
+                                } else if (typeof item.getMediaFilePath === 'function') {
+                                    itemPath = await item.getMediaFilePath();
+                                } else if (typeof item.getMediaPath === 'function') {
+                                    itemPath = await item.getMediaPath();
+                                } else if (item.mediaPath) {
+                                    itemPath = item.mediaPath;
+                                }
+                            } catch (_) {}
+
+                            if (itemPath && typeof itemPath === 'string' && itemPath.match(/\.(mp4|mov|m4v|avi|mkv|wmv|mxf|r3d|braw|prores)$/i)) {
+                                mediaPath = itemPath;
+                                console.log("Resolved mediaPath via bin video asset fallback:", mediaPath);
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Bin video fallback query note:", e);
                     }
                 }
 
