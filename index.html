@@ -281,14 +281,49 @@
             processBtn.disabled = true;
 
             try {
-                // Check active sequence
-                const activeSeq = app.project.activeSequence;
+                // If Premiere Pro environment is not present (e.g. web browser preview)
+                if (!app) {
+                    throw new Error("Adobe Premiere Pro environment not detected. Please run inside Premiere Pro UXP to process timeline clips.");
+                }
+
+                // Resolve active project (UXP async pattern with fallback)
+                let project = null;
+                if (app.Project && typeof app.Project.getActiveProject === 'function') {
+                    project = await app.Project.getActiveProject();
+                } else if (typeof app.getActiveProject === 'function') {
+                    project = await app.getActiveProject();
+                } else if (app.project) {
+                    project = app.project;
+                }
+
+                if (!project) {
+                    throw new Error("No active project found. Open a project in Premiere Pro.");
+                }
+
+                // Resolve active sequence (UXP async pattern with fallback)
+                let activeSeq = null;
+                if (typeof project.getActiveSequence === 'function') {
+                    activeSeq = await project.getActiveSequence();
+                } else if (project.activeSequence) {
+                    activeSeq = project.activeSequence;
+                } else if (typeof app.getActiveSequence === 'function') {
+                    activeSeq = await app.getActiveSequence();
+                } else if (app.activeSequence) {
+                    activeSeq = app.activeSequence;
+                }
+
                 if (!activeSeq) {
                     throw new Error("No active sequence found. Open a sequence in Premiere Pro.");
                 }
 
                 // Asynchronously get selection
-                const selection = await activeSeq.getSelection();
+                let selection = null;
+                if (typeof activeSeq.getSelection === 'function') {
+                    selection = await activeSeq.getSelection();
+                } else if (activeSeq.selection) {
+                    selection = activeSeq.selection;
+                }
+
                 if (!selection || selection.length === 0) {
                     throw new Error("No clip selected on timeline. Highlight a clip on Track 1.");
                 }
@@ -371,7 +406,9 @@
 
                     // Auto-import to Premiere Pro Project bin
                     try {
-                        if (app.project && typeof app.project.importFiles === 'function') {
+                        if (project && typeof project.importFiles === 'function') {
+                            project.importFiles([outputMasterPath], true, project.rootItem || null, false);
+                        } else if (app && app.project && typeof app.project.importFiles === 'function') {
                             app.project.importFiles([outputMasterPath], true, app.project.rootItem, false);
                         }
                     } catch (importErr) {
