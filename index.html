@@ -104,7 +104,9 @@
 
         // DOM Element Selections
         const eraDropdown = document.getElementById('eraDropdown');
+        const eraSelect = eraDropdown;
         const cameraDropdown = document.getElementById('cameraDropdown');
+        const camSelect = cameraDropdown;
         const balanceDropdown = document.getElementById('balanceDropdown');
 
         const sliderMtf = document.getElementById('slider-mtf');
@@ -133,6 +135,7 @@
             valGint.textContent = parseFloat(sliderGint.value).toFixed(3);
             valGsize.textContent = `${parseFloat(sliderGsize.value).toFixed(2)}x`;
         }
+        const updateSliderUIDisplays = updateDisplays;
 
         function setSliderValues(vals) {
             if (vals.mtf !== undefined) sliderMtf.value = vals.mtf;
@@ -141,44 +144,68 @@
             if (vals.h_int !== undefined) sliderHint.value = vals.h_int;
             if (vals.g_int !== undefined) sliderGint.value = vals.g_int;
             if (vals.g_size !== undefined) sliderGsize.value = vals.g_size;
-            updateDisplays();
+            updateSliderUIDisplays();
         }
 
-        // Dropdown Logic
-        eraDropdown.addEventListener('change', () => {
-            const era = eraDropdown.value;
-            cameraDropdown.innerHTML = '<option value="">Select Camera Profile...</option>';
-            
-            if (era && eraBaselines[era]) {
-                setSliderValues(eraBaselines[era]);
-                cameraDropdown.disabled = false;
-                
-                const cameras = cameraModifiers[era];
-                if (cameras) {
-                    Object.keys(cameras).forEach(camName => {
-                        const opt = document.createElement('option');
-                        opt.value = camName;
-                        opt.textContent = camName;
-                        cameraDropdown.appendChild(opt);
-                    });
+        function resetToDefaults() {
+            camSelect.disabled = true;
+            camSelect.innerHTML = '<option value="">Select Camera Profile...</option>';
+            document.getElementById('slider-mtf').value = 0;
+            document.getElementById('slider-thresh').value = 255;
+            document.getElementById('slider-hblur').value = 5;
+            document.getElementById('slider-hint').value = 0.0;
+            document.getElementById('slider-gint').value = 0.000;
+            document.getElementById('slider-gsize').value = 1.00;
+            updateSliderUIDisplays();
+            statusBox.innerText = "Status: Ready. Select an Era.";
+        }
+
+        // === REPLACE THE ERASELECT CHANGE LISTENER IN INDEX.HTML WITH THIS ===
+        eraSelect.addEventListener('change', function(e) {
+            // Reset and wipe the camera dropdown clean
+            camSelect.innerHTML = '<option value="">Select Camera Profile...</option>';
+            const selectedEra = e.target.value;
+
+            if (selectedEra && eraBaselines[selectedEra]) {
+                // 1. Instantly snap sliders to the baseline film data
+                const base = eraBaselines[selectedEra];
+                document.getElementById('slider-mtf').value = base.mtf;
+                document.getElementById('slider-thresh').value = base.thresh;
+                document.getElementById('slider-hblur').value = base.h_blur;
+                document.getElementById('slider-hint').value = base.h_int;
+                document.getElementById('slider-gint').value = base.g_int;
+                document.getElementById('slider-gsize').value = base.g_size;
+                updateSliderUIDisplays();
+                statusBox.innerText = `Status: ${selectedEra} film baseline applied.`;
+
+                // 2. Unlock and populate the secondary tier dropdown using an ultra-stable loop
+                camSelect.disabled = false;
+                const eraCams = cameraModifiers[selectedEra];
+                if (eraCams) {
+                    for (var camKey in eraCams) {
+                        if (Object.prototype.hasOwnProperty.call(eraCams, camKey)) {
+                            var opt = document.createElement('option');
+                            opt.value = camKey;
+                            opt.innerHTML = camKey;
+                            camSelect.appendChild(opt);
+                        }
+                    }
                 }
-                statusBox.textContent = `Status: Loaded ${era} baseline parameters.`;
             } else {
-                cameraDropdown.disabled = true;
-                setSliderValues({ mtf: 0, thresh: 255, h_blur: 5, h_int: 0.0, g_int: 0.0, g_size: 1.0 });
-                statusBox.textContent = "Status: Ready. Select an Era.";
+                resetToDefaults();
             }
         });
+        // ======================================================================
 
-        cameraDropdown.addEventListener('change', () => {
-            const era = eraDropdown.value;
-            const cam = cameraDropdown.value;
+        camSelect.addEventListener('change', () => {
+            const era = eraSelect.value;
+            const cam = camSelect.value;
             if (era && cam && cameraModifiers[era] && cameraModifiers[era][cam]) {
                 setSliderValues(cameraModifiers[era][cam]);
-                statusBox.textContent = `Status: Applied camera modifier: ${cam}`;
+                statusBox.innerText = `Status: Applied camera modifier: ${cam}`;
             } else if (era && eraBaselines[era]) {
                 setSliderValues(eraBaselines[era]);
-                statusBox.textContent = `Status: Reverted to ${era} baseline profile.`;
+                statusBox.innerText = `Status: Reverted to ${era} baseline profile.`;
             }
         });
 
@@ -189,12 +216,10 @@
 
         // Reset Button
         resetBtn.addEventListener('click', () => {
-            eraDropdown.value = "";
-            cameraDropdown.disabled = true;
-            cameraDropdown.innerHTML = '<option value="">Select Camera Profile...</option>';
+            eraSelect.value = "";
             balanceDropdown.value = "warm";
-            setSliderValues({ mtf: 0, thresh: 255, h_blur: 5, h_int: 0.0, g_int: 0.0, g_size: 1.0 });
-            statusBox.textContent = "Status: Reset to defaults. Highlight a clip on Track 1.";
+            resetToDefaults();
+            statusBox.innerText = "Status: Reset to defaults. Highlight a clip on Track 1.";
         });
 
         // Scroll Wheel Navigation for Sliders & Dropdowns
