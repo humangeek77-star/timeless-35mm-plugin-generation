@@ -66,10 +66,24 @@
     <div id="status-box">Status: Ready. Highlight a timeline clip on Track 1.</div>
 
     <script>
-        const { exec } = require('child_process');
-        const path = require('path');
-        const os = require('os');
-        const app = require('premierepro');
+        // Safe UXP / Node / Web runtime detection to prevent load crashes
+        let exec = null, path = null, os = null, app = null;
+        try {
+            if (typeof require !== 'undefined') {
+                try { exec = require('child_process')?.exec || null; } catch (_) {}
+                try { path = require('path'); } catch (_) {}
+                try { os = require('os'); } catch (_) {}
+                try { app = require('premierepro'); } catch (_) {}
+            } else if (typeof window !== 'undefined' && window.require) {
+                try { exec = window.require('child_process')?.exec || null; } catch (_) {}
+                try { path = window.require('path'); } catch (_) {}
+                try { os = window.require('os'); } catch (_) {}
+                try { app = window.require('premierepro'); } catch (_) {}
+            }
+        } catch (_) {}
+        if (!app && typeof window !== 'undefined' && window.app) {
+            app = window.app;
+        }
         
         // === REPLACE THE DATA STRUCTURES IN INDEX.HTML WITH THIS VERSION ===
         const eraBaselines = {
@@ -161,10 +175,10 @@
         }
 
         // === REPLACE THE ERASELECT CHANGE LISTENER IN INDEX.HTML WITH THIS ===
-        eraSelect.addEventListener('change', function(e) {
+        function handleEraChange(e) {
             // Reset and wipe the camera dropdown clean
             camSelect.innerHTML = '<option value="">Select Camera Profile...</option>';
-            const selectedEra = e.target.value;
+            const selectedEra = (e && e.target && e.target.value) || (this && this.value) || eraSelect.value;
 
             if (selectedEra && eraBaselines[selectedEra]) {
                 // 1. Instantly snap sliders to the baseline film data
@@ -180,12 +194,15 @@
 
                 // 2. Unlock and populate the secondary tier dropdown using an ultra-stable loop
                 camSelect.disabled = false;
+                camSelect.removeAttribute('disabled');
                 const eraCams = cameraModifiers[selectedEra];
                 if (eraCams) {
                     for (var camKey in eraCams) {
                         if (Object.prototype.hasOwnProperty.call(eraCams, camKey)) {
                             var opt = document.createElement('option');
                             opt.value = camKey;
+                            opt.textContent = camKey;
+                            opt.innerText = camKey;
                             opt.innerHTML = camKey;
                             camSelect.appendChild(opt);
                         }
@@ -194,12 +211,14 @@
             } else {
                 resetToDefaults();
             }
-        });
+        }
+        eraSelect.addEventListener('change', handleEraChange);
+        eraSelect.addEventListener('input', handleEraChange);
         // ======================================================================
 
-        camSelect.addEventListener('change', () => {
+        function handleCameraChange(e) {
             const era = eraSelect.value;
-            const cam = camSelect.value;
+            const cam = (e && e.target && e.target.value) || (this && this.value) || camSelect.value;
             if (era && cam && cameraModifiers[era] && cameraModifiers[era][cam]) {
                 setSliderValues(cameraModifiers[era][cam]);
                 statusBox.innerText = `Status: Applied camera modifier: ${cam}`;
@@ -207,7 +226,9 @@
                 setSliderValues(eraBaselines[era]);
                 statusBox.innerText = `Status: Reverted to ${era} baseline profile.`;
             }
-        });
+        }
+        camSelect.addEventListener('change', handleCameraChange);
+        camSelect.addEventListener('input', handleCameraChange);
 
         // Sliders realtime display update
         [sliderMtf, sliderThresh, sliderHblur, sliderHint, sliderGint, sliderGsize].forEach(slider => {
