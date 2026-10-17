@@ -10,12 +10,31 @@ def process_video(input_path, output_path, mtf_blur_max=11, halation_threshold=2
     if not cap.isOpened():
         raise RuntimeError(f"Could not open input video: {input_path}")
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     fps = cap.get(cv2.CAP_PROP_FPS) or 24.0
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
+
+    # Immediately write initial 0% progress stamp so the UI connects instantly
+    if progress_file:
+        try:
+            with open(progress_file, "w") as pf:
+                json.dump({"frame": 0, "total": total_frames, "percent": 0.0, "fps": 0.0, "stage": "Initializing"}, pf)
+        except Exception:
+            pass
+
+    # Video writer initialization with multi-codec fallbacks
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    if not out.isOpened():
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    if not out.isOpened():
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    if not out.isOpened():
+        cap.release()
+        raise RuntimeError("Could not initialize video writer with mp4v, avc1, or XVID codecs.")
 
     if mtf_blur_max % 2 == 0:
         mtf_blur_max += 1
@@ -101,7 +120,7 @@ def process_video(input_path, output_path, mtf_blur_max=11, halation_threshold=2
             try:
                 tmp_prog = progress_file + ".tmp"
                 with open(tmp_prog, "w") as pf:
-                    json.dump({"frame": frame_count, "total": total_frames, "percent": pct, "fps": fps_proc}, pf)
+                    json.dump({"frame": frame_count, "total": total_frames, "percent": pct, "fps": fps_proc, "stage": "Rendering"}, pf)
                 if os.path.exists(progress_file):
                     os.remove(progress_file)
                 os.rename(tmp_prog, progress_file)
@@ -115,7 +134,7 @@ def process_video(input_path, output_path, mtf_blur_max=11, halation_threshold=2
     if progress_file:
         try:
             with open(progress_file, "w") as pf:
-                json.dump({"frame": total_frames, "total": total_frames, "percent": 100.0, "fps": 0}, pf)
+                json.dump({"frame": total_frames, "total": total_frames, "percent": 100.0, "fps": 0.0, "stage": "Complete"}, pf)
         except Exception:
             pass
 
