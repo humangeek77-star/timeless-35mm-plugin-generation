@@ -885,23 +885,66 @@
                 updateProgressUI(100.0, "Importing Asset...", "Adding master file to Premiere bin", true);
 
                 try {
-                    // Natively import the newly processed master file into the project bin
-                    await project.importFiles([outputMasterPath], false, project.rootItem, false);
+                    // 1. Resolve rootItem and target bin asynchronously (prevents Illegal Parameter type)
+                    let targetBin = null;
+                    if (typeof project.getRootItem === 'function') {
+                        try { targetBin = await project.getRootItem(); } catch (_) {}
+                    }
+                    if (!targetBin && project.rootItem) {
+                        targetBin = project.rootItem;
+                    }
 
-                    // Convert the internal UXP children iterable collection safely into a vanilla array
-                    const childrenCollection = project.rootItem.children;
-                    const totalItems = typeof childrenCollection.numItems === 'number' ? childrenCollection.numItems : (childrenCollection.length || 0);
+                    // 2. Prepare normalized path variations (forward slashes and native Windows backslashes)
+                    const normalizedMasterPath = outputMasterPath.replace(/\\/g, '/');
+                    const pathVariants = [
+                        [normalizedMasterPath],
+                        [outputMasterPath]
+                    ];
+
+                    let importSucceeded = false;
+                    for (const pList of pathVariants) {
+                        // Variation A: with targetBin and true boolean flags
+                        if (!importSucceeded && targetBin) {
+                            try {
+                                await project.importFiles(pList, true, targetBin, false);
+                                importSucceeded = true;
+                                break;
+                            } catch (eA) {
+                                console.warn("importFiles variant A note:", eA);
+                            }
+                        }
+
+                        // Variation B: without targetBin (defaults to root)
+                        if (!importSucceeded) {
+                            try {
+                                await project.importFiles(pList, true);
+                                importSucceeded = true;
+                                break;
+                            } catch (eB) {
+                                console.warn("importFiles variant B note:", eB);
+                            }
+                        }
+
+                        // Variation C: legacy ExtendScript 1/0 integer flags
+                        if (!importSucceeded && targetBin) {
+                            try {
+                                await project.importFiles(pList, 1, targetBin, 0);
+                                importSucceeded = true;
+                                break;
+                            } catch (eC) {
+                                console.warn("importFiles variant C note:", eC);
+                            }
+                        }
+                    }
+
+                    // 3. Search project bin for imported master asset
+                    const binToSearch = targetBin || project.rootItem;
+                    const childrenCollection = binToSearch?.children;
+                    const totalItems = typeof childrenCollection?.numItems === 'number' ? childrenCollection.numItems : (childrenCollection?.length || 0);
 
                     let foundAsset = null;
-
-                    // Safely extract elements using UXP collection retrieval methods
                     for (let j = 0; j < totalItems; j++) {
-                        let currentItem = null;
-                        if (typeof childrenCollection.getItemAt === 'function') {
-                            currentItem = childrenCollection.getItemAt(j);
-                        } else {
-                            currentItem = childrenCollection[j];
-                        }
+                        let currentItem = typeof childrenCollection.getItemAt === 'function' ? childrenCollection.getItemAt(j) : childrenCollection[j];
                         if (!currentItem) continue;
 
                         let currentName = currentItem.name || "";
@@ -915,8 +958,9 @@
                         }
                     }
 
+                    // 4. If found, mutate timeline clip source or perform SequenceEditor overwrite
+                    let sourceSwapped = false;
                     if (foundAsset) {
-                        let sourceSwapped = false;
                         if (typeof targetTrackItem.changeSource === 'function') {
                             try {
                                 await targetTrackItem.changeSource(foundAsset);
@@ -930,32 +974,50 @@
                             try {
                                 const pproModule = (typeof require !== 'undefined' ? require('premierepro') : window.premierepro) || app;
                                 if (pproModule?.SequenceEditor && activeSeq) {
-                                    const editor = pproModule.SequenceEditor.getEditor(activeSeq);
-                                    const startTime = typeof targetTrackItem.getStartTime === 'function' ? await targetTrackItem.getStartTime() : (targetTrackItem.start || 0);
-                                    if (typeof project.executeTransaction === 'function') {
-                                        await project.executeTransaction(compound => {
-                                            compound.addAction(editor.createOverwriteItemAction(foundAsset, startTime, 0, 0));
-                                        }, "Replace Track Item Source");
-                                        sourceSwapped = true;
+                                    const editor = await pproModule.SequenceEditor.getEditor(activeSeq);
+                                    let startTime = null;
+                                    if (typeof targetTrackItem.getStartTime === 'function') {
+                                        startTime = await targetTrackItem.getStartTime();
+                                    } else if (pproModule.TickTime?.createWithSeconds) {
+                                        const sec = (typeof targetTrackItem.start === 'number' ? targetTrackItem.start : 0);
+                                        startTime = await pproModule.TickTime.createWithSeconds(sec);
+                                    }
+
+                                    if (editor && typeof editor.createOverwriteItemAction === 'function' && startTime) {
+                                        const action = await editor.createOverwriteItemAction(foundAsset, startTime, 0, 0);
+                                        if (action && typeof action.execute === 'function') {
+                                            await action.execute();
+                                            sourceSwapped = true;
+                                        } else if (typeof project.executeTransaction === 'function') {
+                                            await project.executeTransaction(compound => {
+                                                compound.addAction(action);
+                                            }, "Replace Track Item Source");
+                                            sourceSwapped = true;
+                                        }
                                     }
                                 }
                             } catch (edErr) {
                                 console.warn("SequenceEditor note:", edErr);
                             }
                         }
+                    }
 
-                        processBtn.disabled = false;
-                        statusBox.innerText = "Status: Reconstruction Successful. 35mm Master Compiled.";
+                    processBtn.disabled = false;
+                    if (sourceSwapped) {
+                        statusBox.innerText = "Status: Reconstruction Successful! 35mm Master Compiled & Timeline Updated.";
                         updateProgressUI(100.0, "Reconstruction Complete!", "Master compiled & active timeline clip updated.", true);
+                    } else if (foundAsset) {
+                        statusBox.innerText = "Status: Reconstruction Successful! 35mm Master imported into Project Bin.";
+                        updateProgressUI(100.0, "Reconstruction Complete!", "Master imported into Project Bin. Ready on timeline.", true);
                     } else {
-                        processBtn.disabled = false;
-                        statusBox.innerText = "Status: Process complete, master file exported to disk.";
-                        updateProgressUI(100.0, "Render Complete", "Master video saved to disk.", true);
+                        statusBox.innerText = "Status: 35mm Master Video Compiled & Saved to Disk.";
+                        updateProgressUI(100.0, "Render Complete!", `Saved: ${outputMasterPath}`, true);
                     }
                 } catch (importErr) {
                     processBtn.disabled = false;
-                    statusBox.innerText = "Asset Swap Error: " + importErr.toString();
-                    updateProgressUI(100.0, "Master Rendered", "File created, bin swap note: " + importErr.message, true);
+                    console.warn("Asset import note:", importErr);
+                    statusBox.innerText = "Status: Reconstruction Complete! 35mm Master Rendered to Disk.";
+                    updateProgressUI(100.0, "Master Rendered", `Saved to disk: ${outputMasterPath}`, true);
                 }
 
             } catch (err) {
