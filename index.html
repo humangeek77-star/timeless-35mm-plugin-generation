@@ -63,6 +63,19 @@
         <button id="resetBtn">RESET</button>
         <button id="processBtn">PROCESS ACTIVE TIMELINE CLIP</button>
     </div>
+
+    <!-- Live 35mm Reconstruction Progress Bar -->
+    <div id="progress-wrapper" style="display: none; margin: 14px 0 6px 0; background: #141414; padding: 10px 12px; border-radius: 6px; border: 1px solid #282828;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; color: #bbb; font-weight: 500;">
+            <span id="progress-label">Rendering 35mm Reconstruction...</span>
+            <span id="progress-percentage" style="color: #f39c12; font-weight: bold;">0.0%</span>
+        </div>
+        <div style="width: 100%; height: 9px; background: #1f1f1f; border-radius: 5px; overflow: hidden; border: 1px solid #333; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+            <div id="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #d4af37, #f39c12); transition: width 0.25s ease; border-radius: 4px;"></div>
+        </div>
+        <div id="progress-details" style="font-size: 10px; color: #777; margin-top: 5px; text-align: right; font-family: monospace;">0 / 0 frames (0.0 fps)</div>
+    </div>
+
     <div id="status-box">Status: Ready. Highlight a timeline clip on Track 1.</div>
 
     <script>
@@ -140,6 +153,39 @@
         const resetBtn = document.getElementById('resetBtn');
         const processBtn = document.getElementById('processBtn');
         const statusBox = document.getElementById('status-box');
+
+        // Progress Bar Elements & Helpers
+        const progressWrapper = document.getElementById('progress-wrapper');
+        const progressLabel = document.getElementById('progress-label');
+        const progressPercentage = document.getElementById('progress-percentage');
+        const progressFill = document.getElementById('progress-fill');
+        const progressDetails = document.getElementById('progress-details');
+
+        function updateProgressUI(pct, label, details, isComplete = false) {
+            if (progressWrapper) progressWrapper.style.display = 'block';
+            if (progressPercentage) progressPercentage.textContent = `${pct.toFixed(1)}%`;
+            if (progressFill) {
+                progressFill.style.width = `${pct}%`;
+                if (isComplete) {
+                    progressFill.style.background = '#27ae60';
+                } else {
+                    progressFill.style.background = 'linear-gradient(90deg, #d4af37, #f39c12)';
+                }
+            }
+            if (progressLabel && label) progressLabel.textContent = label;
+            if (progressDetails && details) progressDetails.textContent = details;
+        }
+
+        function resetProgressUI() {
+            if (progressWrapper) progressWrapper.style.display = 'none';
+            if (progressFill) {
+                progressFill.style.width = '0%';
+                progressFill.style.background = 'linear-gradient(90deg, #d4af37, #f39c12)';
+            }
+            if (progressPercentage) progressPercentage.textContent = '0.0%';
+            if (progressDetails) progressDetails.textContent = '0 / 0 frames (0.0 fps)';
+            if (progressLabel) progressLabel.textContent = 'Rendering 35mm Reconstruction...';
+        }
 
         function updateDisplays() {
             valMtf.textContent = `${sliderMtf.value}px`;
@@ -240,6 +286,7 @@
             eraSelect.value = "";
             balanceDropdown.value = "warm";
             resetToDefaults();
+            resetProgressUI();
             statusBox.innerText = "Status: Reset to defaults. Highlight a clip on Track 1.";
         });
 
@@ -647,10 +694,14 @@
 
                 const directPythonPath = `C:\\Users\\${localUser}\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe`;
 
-                const cmdString = `"${directPythonPath}" "${pythonScriptPath}" --input "${mediaPath}" --output "${outputMasterPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance ${balance}`;
+                const mediaDir = mediaPath.substring(0, Math.max(mediaPath.lastIndexOf('/'), mediaPath.lastIndexOf('\\')));
+                const progressJsonPath = safePathJoin(mediaDir, "timeless_progress.json");
+
+                const cmdString = `"${directPythonPath}" "${pythonScriptPath}" --input "${mediaPath}" --output "${outputMasterPath}" --mtf ${mtf} --thresh ${thresh} --h_blur ${h_blur} --h_int ${h_int} --g_int ${g_int} --g_size ${g_size} --balance ${balance} --progress "${progressJsonPath}"`;
                 // --------------------------------------------------
 
                 statusBox.textContent = `Status: Processing 35mm Reconstruction via Python OpenCV...`;
+                updateProgressUI(0, "Initializing Engine...", "Preparing video frames...", false);
 
                 // Universal command executor: supports child_process.exec or UXP shell.openPath with .bat runner
                 const executeProcessingCommand = async (cmd) => {
@@ -673,7 +724,6 @@
                     // UXP Sandbox fallback: launch via uxp.shell.openPath using a runner batch file
                     const shell = uxpModule?.shell;
                     if (shell && typeof shell.openPath === 'function') {
-                        const mediaDir = mediaPath.substring(0, Math.max(mediaPath.lastIndexOf('/'), mediaPath.lastIndexOf('\\')));
                         const batPath = safePathJoin(mediaDir, "timeless_runner.bat");
                         const doneFlag = safePathJoin(mediaDir, "timeless_runner.done");
                         const errFlag = safePathJoin(mediaDir, "timeless_runner.err");
@@ -682,6 +732,7 @@
                         try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
                         try { if (uxpFs?.existsSync?.(errFlag)) uxpFs.unlinkSync(errFlag); } catch (_) {}
                         try { if (uxpFs?.existsSync?.(logPath)) uxpFs.unlinkSync(logPath); } catch (_) {}
+                        try { if (uxpFs?.existsSync?.(progressJsonPath)) uxpFs.unlinkSync(progressJsonPath); } catch (_) {}
 
                         const batScript = `@echo off\r\n${cmd} > "${logPath}" 2>&1\r\nif %ERRORLEVEL% EQU 0 (\r\n  echo OK > "${doneFlag}"\r\n) else (\r\n  echo ERROR: %ERRORLEVEL% > "${errFlag}"\r\n)\r\nexit\r\n`;
 
@@ -692,19 +743,53 @@
                         }
 
                         statusBox.textContent = `Status: Security Prompt: Please click "Allow" on the Adobe Permission dialog to start processing...`;
+                        updateProgressUI(0, "Awaiting Permission...", "Click 'Allow' on the Adobe popup dialog", false);
 
                         await shell.openPath(batPath, "Authorize Timeless 35mm to run Python OpenCV reconstruction.");
 
-                        const startTime = Date.now();
-                        let hasUpdatedRunningStatus = false;
-                        while (Date.now() - startTime < 180000) {
-                            await new Promise(r => setTimeout(r, 800));
+                        let lastActivityTime = Date.now();
+                        let lastReportedFrame = 0;
+                        let hasStartedRendering = false;
 
-                            if (!hasUpdatedRunningStatus && (Date.now() - startTime > 3000)) {
-                                statusBox.textContent = `Status: Rendering 35mm film reconstruction (processing video frames)...`;
-                                hasUpdatedRunningStatus = true;
-                            }
+                        while (true) {
+                            await new Promise(r => setTimeout(r, 400));
 
+                            // 1. Read live frame-by-frame progress emitted by Python
+                            try {
+                                if (uxpFs?.existsSync?.(progressJsonPath)) {
+                                    let progContent = "";
+                                    if (typeof uxpFs.readFileSync === 'function') {
+                                        progContent = uxpFs.readFileSync(progressJsonPath, 'utf8');
+                                    } else if (typeof uxpFs.readFile === 'function') {
+                                        progContent = await uxpFs.readFile(progressJsonPath, 'utf8');
+                                    }
+                                    if (progContent) {
+                                        const pData = JSON.parse(progContent);
+                                        if (pData && typeof pData.percent === 'number') {
+                                            const pct = Math.min(100.0, Math.max(0.0, pData.percent));
+                                            const curF = pData.frame || 0;
+                                            const totF = pData.total || 0;
+                                            const fps = pData.fps || 0;
+
+                                            hasStartedRendering = true;
+                                            updateProgressUI(
+                                                pct,
+                                                pct >= 100 ? "Compiling 35mm Master..." : "Rendering 35mm Film Frames...",
+                                                `${curF} / ${totF} frames (${fps} fps)`,
+                                                pct >= 100
+                                            );
+                                            statusBox.textContent = `Status: Processing 35mm Reconstruction (${pct.toFixed(0)}%)...`;
+
+                                            if (curF > lastReportedFrame) {
+                                                lastReportedFrame = curF;
+                                                lastActivityTime = Date.now(); // RESET STALL TIMER ON EVERY FRAME
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (_) {}
+
+                            // 2. Check for script failure
                             let failed = false;
                             try { if (uxpFs?.existsSync?.(errFlag)) failed = true; } catch (_) {}
                             if (failed) {
@@ -718,24 +803,36 @@
                                 throw new Error(`Python rendering script failed: ${logContent ? logContent.slice(0, 300) : 'Non-zero exit code'}`);
                             }
 
+                            // 3. Check for completion flag
                             let complete = false;
                             try {
                                 if (uxpFs?.existsSync?.(doneFlag)) {
                                     complete = true;
-                                } else if (uxpFs?.existsSync?.(outputMasterPath)) {
+                                } else if (uxpFs?.existsSync?.(outputMasterPath) && hasStartedRendering) {
                                     const stat = uxpFs.statSync(outputMasterPath);
-                                    if (stat && stat.size > 2000) complete = true;
+                                    if (stat && stat.size > 2000 && lastReportedFrame > 0) {
+                                        try {
+                                            const p = JSON.parse(uxpFs.readFileSync(progressJsonPath, 'utf8'));
+                                            if (p && p.percent >= 100) complete = true;
+                                        } catch (_) {}
+                                    }
                                 }
                             } catch (_) {}
 
                             if (complete) {
+                                updateProgressUI(100.0, "Rendering Complete!", "Master compiled successfully", true);
                                 try { if (uxpFs?.existsSync?.(batPath)) uxpFs.unlinkSync(batPath); } catch (_) {}
                                 try { if (uxpFs?.existsSync?.(doneFlag)) uxpFs.unlinkSync(doneFlag); } catch (_) {}
                                 try { if (uxpFs?.existsSync?.(logPath)) uxpFs.unlinkSync(logPath); } catch (_) {}
+                                try { if (uxpFs?.existsSync?.(progressJsonPath)) uxpFs.unlinkSync(progressJsonPath); } catch (_) {}
                                 return { stdout: "Reconstruction completed via UXP shell launcher" };
                             }
+
+                            // 4. Stall detection (only triggers if 120 seconds pass with zero progress)
+                            if (Date.now() - lastActivityTime > 120000) {
+                                throw new Error("Pipeline stalled: No frames processed for 120 seconds. Ensure Python has OpenCV installed.");
+                            }
                         }
-                        throw new Error("Pipeline timed out waiting for master video generation.");
                     }
 
                     throw new Error("Execution method not available (neither child_process.exec nor uxp.shell.openPath supported).");
@@ -746,10 +843,12 @@
                 } catch (cmdError) {
                     processBtn.disabled = false;
                     statusBox.innerText = `Pipeline Error: ${cmdError.message}`;
+                    updateProgressUI(0, "Pipeline Stopped", cmdError.message, false);
                     return;
                 }
 
                 statusBox.innerText = "Status: Finalizing clip mutation...";
+                updateProgressUI(100.0, "Importing Asset...", "Adding master file to Premiere bin", true);
 
                 try {
                     // Natively import the newly processed master file into the project bin
@@ -813,18 +912,22 @@
 
                         processBtn.disabled = false;
                         statusBox.innerText = "Status: Reconstruction Successful. 35mm Master Compiled.";
+                        updateProgressUI(100.0, "Reconstruction Complete!", "Master compiled & active timeline clip updated.", true);
                     } else {
                         processBtn.disabled = false;
                         statusBox.innerText = "Status: Process complete, master file exported to disk.";
+                        updateProgressUI(100.0, "Render Complete", "Master video saved to disk.", true);
                     }
                 } catch (importErr) {
                     processBtn.disabled = false;
                     statusBox.innerText = "Asset Swap Error: " + importErr.toString();
+                    updateProgressUI(100.0, "Master Rendered", "File created, bin swap note: " + importErr.message, true);
                 }
 
             } catch (err) {
                 processBtn.disabled = false;
                 statusBox.textContent = `Status Error: ${err.message}`;
+                updateProgressUI(0, "Error", err.message, false);
             }
         });
 
